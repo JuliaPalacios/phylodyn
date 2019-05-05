@@ -23,7 +23,7 @@ sampled per sampling time \code{n_sampled}.}
 \item{pref}{logical. Should the preferential sampling model be used?}
 
 \item{prec_alpha, prec_beta}{numerics specifying gamma prior for precision 
-\eqn{\tau}.}
+\eqn{\kappa}.}
 
 \item{beta1_prec}{numeric specifying precision for normal prior on 
 \eqn{\beta_1}.}
@@ -61,7 +61,9 @@ Bayesian nonparametric phylodynamic reconstruction.
 }}
 \examples{
 data("NY_flu")
-res = BNPR(NY_flu)
-plot_BNPR(res)
+if (requireNamespace("INLA", quietly = TRUE)) {
+ res = BNPR(NY_flu)
+ plot_BNPR(res)
+}
 }
 

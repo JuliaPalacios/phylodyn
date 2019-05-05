@@ -7,9 +7,10 @@
 mcmc_sampling(dataset, alg, nsamp, nburnin = 0, nsubsamp = 1, ngrid = 100,
   nugget = "1,1", prec_alpha = 0.01, prec_beta = 0.01, TrjL = NULL,
   Nleap = NULL, szkappa = NULL, rand_leap = NULL, f_init = rep(1, ngrid
-  - 1), kappa = 1, covariates = NULL, betas = rep(0, 2 +
-  length(covariates)), samp_alg = "none", kappa_alg = "gibbs",
-  beta_vars = rep(100, length(betas)), printevery = 100)
+  - 1), kappa = 1, covariates = NULL, power_covariates = NULL,
+  betas = rep(0, 2 + length(covariates) + length(power_covariates)),
+  samp_alg = "none", kappa_alg = "gibbs", beta_vars = rep(100,
+  length(betas)), printevery = 100, first_elem_prec = 0.01)
 }
 \arguments{
 \item{dataset}{\code{phylo} object or list containing vectors of coalescent 
@@ -33,7 +34,7 @@ precision matrix to make it full-rank. Options are '1,1' for an adjustment
 to the first element, 'diag' for an adjustment to the entire main diagonal,
 or 'none' which may result in a non-full-rank precision matrix.}
 
-\item{prec_alpha, prec_beta}{numeric shape and rate parameters for the prior
+\item{prec_alpha, prec_beta}{numeric shape and rate parameters for the prior 
 on precision.}
 
 \item{TrjL}{numeric tuning parameter.}
@@ -53,8 +54,8 @@ on precision.}
 
 \item{betas}{numeric vector of starting values for the beta hyperparameters.}
 
-\item{samp_alg}{selects sampling algorithm for effective population size 
-latent points. One of "HMC", "splitHMC", "MALA", "aMALA", and "ESS".}
+\item{samp_alg}{string selecting sampling algorithm for sampling time 
+intensity coefficients. One of "none" (default), "fixed", "MH", and "ESS".}
 
 \item{kappa_alg}{selects sampling algorithm for kappa. One of "gibbs" 
 (default) or "whiten".}

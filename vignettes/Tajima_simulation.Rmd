@@ -1,0 +1,110 @@
+---
+title: "Tajima inference from a simulation"
+author: "Julia Palacios"
+date: "April 13, 2018"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Simulation}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+Data simulation
+========================================================
+
+We will first use \texttt{coalsim} to simulate a genealogy from an exponential size trajectory with 10 tips. In all our simulations, time is measured in units of $N_{0}$ generations.
+
+gene = coalsim(samp_times = samp_times, n_sampled = n_sampled, traj = traj, lower_bound = 1/20)
+
+```{r}
+library("phylodyn")
+library("ape")
+library("rPython")
+set.seed(100+8)
+n<-10
+
+exp_traj<-function(t){
+  result=rep(0,length(t))
+  result[t<=0.1]<-10
+  result[t>0.1]<-10*exp(2-20*t[t>0.1]) #50 times smaller
+  return(result)
+}
+
+
+simulation<-coalsim(samp_times =0, n_sampled = n, traj = exp_traj)
+tree1<-rcoal(n,tip.label=NULL,br=simulation$intercoal_times)
+```
+If we had the genealogy alone, we could use \texttt{phylodyn} to infer $N(t)$ as follows:
+
+```{r}
+res1a<-BNPR(data=tree1,lengthout=50,prec_alpha=.1)
+#par(mfrow=c(1,2))
+plot_BNPR(res1a,heatmaps=FALSE,heatmap_labels = FALSE,ylab="Ne(t)",main="Effective Pop Size",ylim=c(.001,1000))
+points(seq(0,sum(simulation$intercoal_times)+.1,by=.01),exp_traj(seq(0,sum(simulation$intercoal_times)+.1,by=.01)),type="l",lty=2)
+
+```
+
+We now simulate mutations along the tree to generate a dataset according to the infinite sites mutation model. 
+```{r}
+data1<-simulate_data(40,tree1)
+nrow(data1)
+```
+
+initial<-initial_tajima(data1,name="OldExp_10",mu=40,npoints=49,fact=1)
+
+
+#intial MCMC
+setupchain<-initial_MCMC(initial,ngrid=50,mu=40,n=10,alpha=.1,fact=1)
+acp1<-0;acp2<-0;acp3<-0; acp2_t<-0
+currentval<-setupchain$currentval
+theta_list<-setupchain$theta_list
+prec_list<-setupchain$prec_list
+probs_list<-setupchain$probs_list
+times_list<-setupchain$times_list
+F_list<-setupchain$F_list
+
+
+constant<-function(x){
+  return (rep(1,length(x)))
+}
+
+simulation1<-coalsim(0,10,constant)
+tree1<-generate_newick(simulation1)
+plot(tree1$newick)
+tree1$newick
+```
+
+In the following example we simulate a genealogy with constant effective population size with 10 tips at time 0 and 40 other tips with uniform sampling times 
+```{r}
+
+samp_times = c(0, sort(runif(40, 0, 8)))
+n_sampled = c(10, rep(1, 40))
+
+simulation2<-coalsim(samp_times = samp_times, n_sampled = n_sampled, traj = constant)
+tree2<-generate_newick(simulation2)
+plot(tree2$newick,show.tip.label = F)
+tree2$newick
+
+```
+
+Here, we consider a more general demographic model such as bottleneck. We specify our trajectory through the function \texttt{bottleneck_traj} and simulate via the thinning method (see Palacios and Minin, 2013)
+```{r}
+
+bottleneck_traj<-function(t){
+  result=rep(0,length(t))
+  result[t<=0.5]<-1
+  result[t>0.5 & t<1]<-.1
+  result[t>=1]<-1
+  return(result)
+}
+
+simulation3<-coalsim(samp_times = samp_times, n_sampled = n_sampled, traj = bottleneck_traj,method="thin",val_upper=11)
+tree3<-generate_newick((simulation3))
+plot(tree3$newick,show.tip.label = F)
+```
+
+Note: Other R packages such as Ape and phyclust (ms) have functions that simulate isochronous genealogies under the coalescent model for specific demographic scenarios such as exponential growth and piece-wise constant functions. 
+
+
+
+
+
