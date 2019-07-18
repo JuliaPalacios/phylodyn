@@ -3,7 +3,7 @@
 phylodyn
 ========
 
-The purpose of `phylodyn` is to facilitate phylodynamic inference and analysis in an approachable R package.
+This is a branch forked from mdkarcher/phylodyn. The purpose of this branch of `phylodyn` is to incorporate the sampling of genealogies and facilitate phylodynamic inference and analysis from data directly. This branch includes some python code and installation may be problematic. We are working to resolve this.
 
 ## Installation
 
