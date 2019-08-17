@@ -86,3 +86,5 @@ In *Proceedings of the Twenty-Eighth International Conference on Uncertainty in 
 Molecular Ecology Resources, 17, 96-100, 2017.
 
 8. L. Cappello and J.A. Palacios. [Sequential Importance Sampling for Multi-Resolution Kingman-Tajima Coalescent Counting](https://arxiv.org/abs/1902.05527), arXiv:1902.05527
+
+9. J.A. Palacios, A. Veber, L. Cappello, Z. Wang, J. Wakeley, S. Ramachandran. [Bayesian Estimation of Population Size Changes by Sampling Tajima's Trees](https://www.biorxiv.org/content/10.1101/605352v1), BioRxiv
