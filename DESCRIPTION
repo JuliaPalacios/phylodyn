@@ -9,7 +9,7 @@ Imports:
     spam
 Date: 2019-03-04
 Author: Michael Karcher, Julia Palacios, Shiwei Lan, Vladimir Minin
-Maintainer: Michael Karcher <mkarcher@fredhutch.org>
+Maintainer: Julia Palacios <juliapr@stanford.edu>
 Description: Statistical tools for reconstructing population size from genetic
     sequence data.
 License: GPL-3
@@ -18,8 +18,9 @@ Suggests:
     INLA,
     knitr,
     testthat,
+    rPython,
     rmarkdown
 VignetteBuilder: knitr
 RoxygenNote: 5.0.1
-URL: https://github.com/mdkarcher/phylodyn
-BugReports: https://github.com/mdkarcher/phylodyn/issues
+URL: https://github.com/JuliaPalacios/phylodyn
+BugReports: https://github.com/JuliaPalacios/phylodyn/issues
