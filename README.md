@@ -3,7 +3,7 @@
 phylodyn
 ========
 
-This is a branch forked from mdkarcher/phylodyn. The purpose of this branch of `phylodyn` is to incorporate the sampling of genealogies and facilitate phylodynamic inference and analysis from data directly. This branch includes some python code and installation may be problematic. We are working to resolve this.
+This is a branch forked from mdkarcher/phylodyn. The purpose of this branch of `phylodyn` is to incorporate the sampling of genealogies and facilitate phylodynamic inference and analysis from data directly. This branch includes some Python code and installation may be problematic. We are working to resolve this.
 
 ## Installation
 
@@ -16,9 +16,9 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
 
 4. Install `phylodyn` using
 
-    a. `install_github("mdkarcher/phylodyn")`, or
+    a. `install_github("JuliaPalacios/phylodyn")`, or
 
-    b. `install_github("mdkarcher/phylodyn", build_vignettes = TRUE)` if you want some illustrative vignettes (note: using `build_vignettes = TRUE` will make the install take longer).
+    b. `install_github("JuliaPalacios/phylodyn", build_vignettes = TRUE)` if you want some illustrative vignettes (note: using `build_vignettes = TRUE` will make the install take longer).
 
 ## Vignettes
 
@@ -36,7 +36,7 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
 
 7. [LocalGenealogies](https://github.com/mdkarcher/phylodyn/blob/master/vignettes/LocalGenealogies.Rmd): A short example of MCMC-based inference of effective population size trajectories from a sequence of local genealogies. Genealogies are assumed to be a realization of the Sequentially Markov Coalescent (SMC') model. The methodology is developed in [6]
 
-8. [KingmanTajimaCounting](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/LocalGenealogies.Rmd)
+8. [KingmanTajimaCounting](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/CountSimulatedCoalescentTrees.Rmd): An example under construction. The methodology is developed in [8]
 
 ## Datasets
 
@@ -86,3 +86,5 @@ In *Proceedings of the Twenty-Eighth International Conference on Uncertainty in 
 Molecular Ecology Resources, 17, 96-100, 2017.
 
 8. L. Cappello and J.A. Palacios. [Sequential Importance Sampling for Multi-Resolution Kingman-Tajima Coalescent Counting](https://arxiv.org/abs/1902.05527), arXiv:1902.05527
+
+9. J.A. Palacios, A. Veber, L. Cappello, Z. Wang, J. Wakeley, S. Ramachandran. [Bayesian Estimation of Population Size Changes by Sampling Tajima's Trees](https://www.biorxiv.org/content/10.1101/605352v1), BioRxiv
