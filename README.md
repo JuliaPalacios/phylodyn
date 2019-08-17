@@ -36,7 +36,7 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
 
 7. [LocalGenealogies](https://github.com/mdkarcher/phylodyn/blob/master/vignettes/LocalGenealogies.Rmd): A short example of MCMC-based inference of effective population size trajectories from a sequence of local genealogies. Genealogies are assumed to be a realization of the Sequentially Markov Coalescent (SMC') model. The methodology is developed in [6]
 
-8. 
+8. [KingmanTajimaCounting](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/LocalGenealogies.Rmd)
 
 ## Datasets
 
@@ -85,4 +85,4 @@ In *Proceedings of the Twenty-Eighth International Conference on Uncertainty in 
 [phylodyn: an R package for phylodynamic simulation and inference](http://onlinelibrary.wiley.com/doi/10.1111/1755-0998.12630/full), 
 Molecular Ecology Resources, 17, 96-100, 2017.
 
-8. L. Cappello, J.A. Palacios. [Sequential Importance Sampling for Multi-Resolution Kingman-Tajima Coalescent Counting](https://arxiv.org/abs/1902.05527), arXiv:1902.05527
+8. L. Cappello and J.A. Palacios. [Sequential Importance Sampling for Multi-Resolution Kingman-Tajima Coalescent Counting](https://arxiv.org/abs/1902.05527), arXiv:1902.05527
