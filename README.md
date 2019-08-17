@@ -3,7 +3,7 @@
 phylodyn
 ========
 
-This is a branch forked from mdkarcher/phylodyn. The purpose of this branch of `phylodyn` is to incorporate the sampling of genealogies and facilitate phylodynamic inference and analysis from data directly. This branch includes some python code and installation may be problematic. We are working to resolve this.
+This is a branch forked from mdkarcher/phylodyn. The purpose of this branch of `phylodyn` is to incorporate the sampling of genealogies and facilitate phylodynamic inference and analysis from data directly. This branch includes some Python code and installation may be problematic. We are working to resolve this.
 
 ## Installation
 
@@ -16,9 +16,9 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
 
 4. Install `phylodyn` using
 
-    a. `install_github("mdkarcher/phylodyn")`, or
+    a. `install_github("JuliaPalacios/phylodyn")`, or
 
-    b. `install_github("mdkarcher/phylodyn", build_vignettes = TRUE)` if you want some illustrative vignettes (note: using `build_vignettes = TRUE` will make the install take longer).
+    b. `install_github("JuliaPalacios/phylodyn", build_vignettes = TRUE)` if you want some illustrative vignettes (note: using `build_vignettes = TRUE` will make the install take longer).
 
 ## Vignettes
 
