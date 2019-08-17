@@ -84,3 +84,5 @@ In *Proceedings of the Twenty-Eighth International Conference on Uncertainty in 
 7. M. Karcher M, J.A. Palacios, S. Lan, V.N. Minin. 
 [phylodyn: an R package for phylodynamic simulation and inference](http://onlinelibrary.wiley.com/doi/10.1111/1755-0998.12630/full), 
 Molecular Ecology Resources, 17, 96-100, 2017.
+
+8. L. Cappello, J.A. Palacios. [Sequential Importance Sampling for Multi-Resolution Kingman-Tajima Coalescent Counting](https://arxiv.org/abs/1902.05527), arXiv:1902.05527
