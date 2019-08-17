@@ -1802,10 +1802,18 @@ splitHMC2 = function (q_cur, u_cur, du_cur, U, lik_init,invC, rtEV, EVC, eps=.1,
   else
     return (list(q = q_cur, u = u_cur, du = du_cur, Ind = 0, pos_summ = U(q_cur,lik_init,invC)))
 }
-
-initial_tajima<-function(data1,name="temp",mu,npoints=49,fact=1){
-  oldsuff<-sufficient_stats(data1)
-  beastfile(data1,name)  
+#' BESTT initialization 
+#' 
+#' @param data A vector of mutations
+#' @param name The name of the fasta file to be stored in your working directory
+#' @param mu Mutation rate
+#' @param npoints Number of breakpoints of a regular grid to initialize Ne
+#' 
+#' @return A list with initial values. theta is log Ne
+#' @export
+initial_tajima<-function(data,name="temp",mu,npoints=49){
+  oldsuff<-sufficient_stats(data)
+  beastfile(data,name)  
   fastaformat<-read.FASTA(name)
   fastafile<-as.phyDat(fastaformat)
   dm <- dist.ml(fastafile)
@@ -1816,7 +1824,7 @@ initial_tajima<-function(data1,name="temp",mu,npoints=49,fact=1){
   res2b<-BNPR(data=treeUPGMA,lengthout=npoints)
   times<-coalescent.intervals(treeUPGMA)$interval.length
   times[times==0]<-min(min(times[times>0])/2,.0000001)
-  return(list(res2b=res2b,oldsuff=oldsuff,times=times*fact,theta=c(log(res2b$effpopmean*fact),1)))
+  return(list(res2b=res2b,oldsuff=oldsuff,times=times,theta=c(log(res2b$effpopmean),1)))
 }
 
 initial_MCMC_L<-function(initial,ngrid=50,mu=40,n=10,fact=10){
