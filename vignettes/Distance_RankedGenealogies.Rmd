@@ -1,0 +1,61 @@
+---
+title: "Distances between ranked tree shapes example for n=5"
+author: "Jaehee Kim"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Distance example}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This vignette demonstrates generation of F-matrices and a distance matrix between ranked tree shapes with $n=5$. a simple example  
+
+We first load all five ranked tree shapes for $n=5$.
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+library(phylodyn)
+# data(tr_list, package = "phylodyn") #uncomment this when uploading to phylodyn
+source('../R/tree_distance.R') # comment this when uploading to phylodyn
+load('../data/tr_list.rda') # comment this when uploading to phylodyn
+```
+
+```{r, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.width=6, fig.height=4}
+par(mfrow=c(2,3), mar=c(1,1,1,1), cex=1)
+for (i in 1:length(tr_list)) {
+    ape::plot.phylo(ape::ladderize(tr_list[[i]]),
+                    directio='downward', main=paste('Tree', i),
+                    edge.width=2)
+}
+```
+
+We now generate F-matrix for each ranked tree shape.
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+Fmat_list <- list()
+for (i in 1:length(tr_list)) {
+    Fmat_list[[i]] <- gen_Fmat(tr_list[[i]])
+}
+print(Fmat_list)
+```
+
+We next compute pairwise distances between above five ranked tree shapes for $n=5$. In this example, we use $L_1$ distance and considers ranked tree shapes only (i.e., unweighted).
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+dmat <- matrix(0, nrow=length(tr_list), ncol=length(tr_list))
+
+for (i in 1:length(tr_list)) {
+    for (j in 1:i) {
+        dmat[i,j] <- dist_pairwise(tr_list[[i]], tr_list[[j]], dist.method='l1', weighted=F)
+    }
+}
+
+tmp <- dmat[lower.tri(dmat)]
+dmat <- t(dmat)
+dmat[lower.tri(dmat)] <- tmp
+print(dmat) 
+```
+
+
+
