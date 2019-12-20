@@ -38,6 +38,8 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
 
 8. [KingmanTajimaCounting](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/CountSimulatedCoalescentTrees.Rmd): An example under construction. The methodology is developed in [8]
 
+9. [DistanceTrees]. 
+
 ## Datasets
 
 Datasets below can be found at: https://github.com/mdkarcher/PhyloData/
