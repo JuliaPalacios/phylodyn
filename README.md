@@ -91,4 +91,4 @@ Molecular Ecology Resources, 17, 96-100, 2017.
 
 9. J.A. Palacios, A. Veber, L. Cappello, Z. Wang, J. Wakeley, S. Ramachandran. [Bayesian Estimation of Population Size Changes by Sampling Tajima's Trees](https://www.biorxiv.org/content/10.1101/605352v1), BioRxiv
 
-10. J. Kim, N.A. Rosenberg, J.A. Palacios. A Metric Space of Ranked Tree Shapes and Ranked Genealogies. (TBA)
+10. J. Kim, N.A. Rosenberg, J.A. Palacios. [A Metric Space of Ranked Tree Shapes and Ranked Genealogies](https://www.biorxiv.org/content/10.1101/2019.12.23.887125v1.full.pdf)
