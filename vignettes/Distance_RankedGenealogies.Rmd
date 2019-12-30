@@ -13,7 +13,7 @@ vignette: >
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This vignette demonstrates generation of F-matrices and a distance matrix between ranked tree shapes with $n=5$. a simple example  
+This vignette demonstrates generation of F-matrices and a distance matrix between ranked tree shapes with $n=5$. 
 
 We first load all five ranked tree shapes for $n=5$.
 ```{r, include=TRUE, message=FALSE, warning=FALSE}
