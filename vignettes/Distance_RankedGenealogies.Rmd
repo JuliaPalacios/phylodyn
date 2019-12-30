@@ -70,7 +70,7 @@ library(treespace)
 sim.tag <- T
 rand.seed <- 1
 
-treetypes <- c("yule","pda","ab","balanced", "unbalanced")
+treetypes <- c("balanced", "yule", "ab", "pda", "unbalanced")
 n.sim <- 10 # number of simulations, needs to be multiple of 100 (for create.dmat)
 n.tip <- 50 # number of tips
 n.model <- length(treetypes)
