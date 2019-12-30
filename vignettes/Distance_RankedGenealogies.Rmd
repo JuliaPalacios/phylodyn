@@ -42,13 +42,11 @@ print(Fmat_list)
 We next compute pairwise distances between above five ranked tree shapes for $n=5$. In this example, we use $L_1$ distance and considers ranked tree shapes only (i.e., unweighted).
 ```{r, include=TRUE, message=FALSE, warning=FALSE}
 dmat <- matrix(0, nrow=length(tr_list), ncol=length(tr_list))
-
 for (i in 1:length(tr_list)) {
     for (j in 1:i) {
         dmat[i,j] <- dist_pairwise(tr_list[[i]], tr_list[[j]], dist.method="l1", weighted=FALSE)
     }
 }
-
 tmp <- dmat[lower.tri(dmat)]
 dmat <- t(dmat)
 dmat[lower.tri(dmat)] <- tmp
@@ -69,7 +67,6 @@ We now simulate 10 trees with n=50 tips from 5 different Beta-splitting distribu
 library(treespace)
 sim.tag <- T
 rand.seed <- 1
-
 treetypes <- c("balanced", "yule", "ab", "pda", "unbalanced")
 n.sim <- 10 # number of simulations, needs to be multiple of 100 (for create.dmat)
 n.tip <- 50 # number of tips
@@ -105,21 +102,15 @@ for (i in 1:length(treetypes)) {
             Fmat.list[[i]][[j]]<-gen_Fmat(tmp.tr)
         }
 }
-
     
 names(tr.list) <- treetypes
 names(Fmat.list) <- treetypes
 
+all.Fmat <- unlist(Fmat.list, recursive=F)
+dmat.L1 <- create.dmat.iso(all.Fmat, dist.method='l1')
 
-# ============================================================
-# Create distance matrix and do MDS  
-# ============================================================
 
-mds.analysis <- function(dmat, save.f.pre) {
-    # dmat: distance matrix
-    # save.f.pre: prefix for same names for the figures and data save
-    
-    ## MDS
+
     mds <- cmdscale(dmat, eig=T, k=3)
     
     ## Find medoid points for each model and plot
@@ -154,7 +145,6 @@ mds.analysis <- function(dmat, save.f.pre) {
                 'and (scaled) min', min(neg.eig)/sum(mds$eig)))    
     
     ## Plot medoid trees.
-    png(paste(save.f.pre, 'medoid_tr.png', sep=''), width=1300, height=1000)
     par(mfrow=c(2,3), oma=c(1,1,1,1), mar=c(2,2,2,2), cex=1.5)
     for(i in 1:n.model) {
         m.tr.ind <- m.pts[[i]][1] - (i-1)*n.sim
@@ -162,15 +152,14 @@ mds.analysis <- function(dmat, save.f.pre) {
                    main=paste('model =', treetypes[i]))
     }
     mtext("Medoid Tree", side=3, line=-21.5, outer=T, font=2, cex=2)
-    dev.off()
     
-    save(dmat, mds, m.pts, file=paste(save.f.pre, 'mds_data.RData', sep=''))
+    
 }
-
 ```
 
 
 This is an example of heterochronously sampled genealogies. We use our weighted L2 distance
+
 
 
 
