@@ -2462,6 +2462,7 @@ generateFprop<-function(Finfo){
 #'  will be the (mu)(L) where L is the tree length 
 #' @param tree1 ape tree object
 #'   
+#' @return data
 #' @export
 simulate_data<-function(mu,tree1){
   n<-tree1$Nnode+1
