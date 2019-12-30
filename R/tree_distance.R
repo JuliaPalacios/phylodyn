@@ -451,6 +451,17 @@ dist_pairwise <- function(tr.1, tr.2, dist.method='l1', weighted=FALSE) {
     return(dist)
 }
 
+##Auxiliary##
+consolidateF<-function(Fju){
+    ##generates an F matrix consistent with paper notation
+    newF<-matrix(0,nrow=nrow(Fju),ncol=nrow(Fju))
+    for (j in 1:nrow(newF)){
+        newF[nrow(Fju)-j+1,]<-rev(Fju[,j])
+    }
+    newF2<-matrix(0,nrow=Fju[1,1],ncol=Fju[1,1])
+    newF2[2:Fju[1,1],2:Fju[1,1]]<-newF
+    return(newF2)
+}
 
 
 
