@@ -21,6 +21,6 @@ Suggests:
     rPython,
     rmarkdown
 VignetteBuilder: knitr
-RoxygenNote: 5.0.1
+RoxygenNote: 7.0.2
 URL: https://github.com/JuliaPalacios/phylodyn
 BugReports: https://github.com/JuliaPalacios/phylodyn/issues
