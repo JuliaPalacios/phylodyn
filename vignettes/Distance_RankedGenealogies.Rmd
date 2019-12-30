@@ -18,9 +18,7 @@ This vignette demonstrates generation of F-matrices and a distance matrix betwee
 We first load all five ranked tree shapes for $n=5$.
 ```{r, include=TRUE, message=FALSE, warning=FALSE}
 library(phylodyn)
-# data(tr_list, package = "phylodyn") #uncomment this when uploading to phylodyn
-source('../R/tree_distance.R') # comment this when uploading to phylodyn
-load('../data/tr_list.rda') # comment this when uploading to phylodyn
+data(tr_list)
 ```
 
 ```{r, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.width=6, fig.height=4}
