@@ -60,6 +60,9 @@ mds <- cmdscale(dmat, eig=T, k=2)
 plot(mds$points[,1:2])  
 ```    
 
+We also compute the distances with adaptations of other tree distances to ranked tree shapes.
+NOTE: ADD HERE
+
 
 We now simulate 10 trees with n=50 tips from 5 different Beta-splitting distributions. The random trees are generated using the code by Maliet 2018. We compute the pairwaise L1 distance matrix of 50 by 50 and plot the MDS of the distance matrix:
 
@@ -158,7 +161,7 @@ dmat.L1 <- create.dmat.iso(all.Fmat, dist.method='l1')
 ```
 
 
-This is an example of heterochronously sampled genealogies. We use our weighted L2 distance
+This is an example of heterochronously sampled genealogies. We first simulate... We use our weighted L2 distance... We plot the MDS... We observe that... . The Frechet mean is calculated as follows... The uncertainty measure is...
 
 
 
