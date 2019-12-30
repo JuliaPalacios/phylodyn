@@ -13,7 +13,7 @@ vignette: >
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This vignette demonstrates generation of F-matrices and a distance matrix between ranked tree shapes with $n=5$. 
+This vignette demonstrates generation of F-matrices and a distance matrix between ranked tree shapes with $n=5$. a simple example  
 
 We first load all five ranked tree shapes for $n=5$.
 ```{r, include=TRUE, message=FALSE, warning=FALSE}
@@ -45,7 +45,7 @@ dmat <- matrix(0, nrow=length(tr_list), ncol=length(tr_list))
 
 for (i in 1:length(tr_list)) {
     for (j in 1:i) {
-        dmat[i,j] <- dist_pairwise(tr_list[[i]], tr_list[[j]], dist.method='l1', weighted=F)
+        dmat[i,j] <- dist_pairwise(tr_list[[i]], tr_list[[j]], dist.method="l1", weighted=FALSE)
     }
 }
 
@@ -54,6 +54,126 @@ dmat <- t(dmat)
 dmat[lower.tri(dmat)] <- tmp
 print(dmat) 
 ```
+
+We can visualize the MDS of those 5 trees:
+
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+mds <- cmdscale(dmat, eig=T, k=2)
+plot(mds$points[,1:2])  
+```    
+
+
+We now simulate 10 trees with n=50 tips from 5 different Beta-splitting distributions. The random trees are generated using the code by Maliet 2018. We compute the pairwaise L1 distance matrix of 50 by 50 and plot the MDS of the distance matrix:
+
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+library(treespace)
+sim.tag <- T
+rand.seed <- 1
+
+treetypes <- c("yule","pda","ab","balanced", "unbalanced")
+n.sim <- 10 # number of simulations, needs to be multiple of 100 (for create.dmat)
+n.tip <- 50 # number of tips
+n.model <- length(treetypes)
+set.seed(rand.seed)
+n.model <- length(treetypes)
+Fmat.list <- list()
+tr.list <- list()
+for (i in 1:length(treetypes)) {
+  t.mode <- treetypes[i]
+  print(t.mode)
+  alpha <- 1
+  eta <- 1
+  epsilon <- 0.001 # the same value used in Maliet, Gascuel, and Lambert (2018)
+        if (t.mode == 'yule') {
+            beta <- 0
+        } else if (t.mode == 'pda') {
+            beta <- -1.5
+        } else if (t.mode == 'ab') {
+            beta <- -1
+        } else if (t.mode == 'balanced') {
+            beta <- 100                                                                   
+        } else if (t.mode == 'unbalanced') {
+            beta <- -1.9
+        }
+        
+        
+        tr.list[[i]] <- replicate(n.sim,apTreeshape::simulate_tree(epsilon=epsilon, alpha=alpha, beta=beta, N=n.tip))
+        
+        
+        # create.Fmat is a bit slow so parallelized it when the number of simulation is large.
+        Fmat.list[[i]] <-list()
+        for (j  in 1:n.sim) {
+            Fmat.list[[i]][[j]]<-gen_Fmat(tr.list[[i]][[j]]))
+        }
+}
+
+    
+    names(tr.list) <- treetypes
+    names(Fmat.list) <- treetypes
+    
+
+
+# ============================================================
+# Create distance matrix and do MDS  
+# ============================================================
+
+mds.analysis <- function(dmat, save.f.pre) {
+    # dmat: distance matrix
+    # save.f.pre: prefix for same names for the figures and data save
+    
+    ## MDS
+    mds <- cmdscale(dmat, eig=T, k=3)
+    
+    ## Find medoid points for each model and plot
+    m.pts <- list()
+    for (i in 1:n.model) {
+        tr.ind <- ((i-1)*n.sim + 1):(i*n.sim)
+        m.pts[[i]] <- find.frechet.mean(dmat[tr.ind, tr.ind]) + (i-1)*n.sim
+    }
+    
+    png(paste(save.f.pre, 'mds.png', sep=''), width=800, height=800)
+    par(mfrow=c(1,1), pty="s", mar=c(4,4,2,2), cex=1.5)
+    plot.mds(n.model, n.sim, mds$points[,1:2], m.pts,  
+             plt.legend=treetypes, plt.legend.loc='topright')
+    dev.off()
+    
+    ## First 10 Eigenvalues and Goodness of Fit
+    png(paste(save.f.pre, 'mds_gof.png', sep=''), width=1000, height=500)
+    par(mfrow=c(1,2), pty="s", mar=c(4,4,2,2), cex=1.5)
+    plot(mds$eig[1:10]/sum(mds$eig), type="h", lwd=3, las=1, col='blue',
+         xlab="Number of dimensions", ylab="Eigenvalues")
+    plot(mds$eig/sum(mds$eig), type="l", lwd=3, las=1, col='blue', 
+         xlab="Number of dimensions", ylab="Eigenvalues")
+    dev.off()
+    print(mds$GOF)
+    
+    ## Number of negative eigenvalues
+    neg.eig.ind <- which(mds$eig < 0)
+    neg.eig <- mds$eig[neg.eig.ind]
+    print(paste('number of negative eigenvalues:', length(neg.eig.ind), 
+                'of', length(mds$eig)))
+    print(paste('(scaled) max', max(neg.eig)/sum(mds$eig), 
+                'and (scaled) min', min(neg.eig)/sum(mds$eig)))    
+    
+    ## Plot medoid trees.
+    png(paste(save.f.pre, 'medoid_tr.png', sep=''), width=1300, height=1000)
+    par(mfrow=c(2,3), oma=c(1,1,1,1), mar=c(2,2,2,2), cex=1.5)
+    for(i in 1:n.model) {
+        m.tr.ind <- m.pts[[i]][1] - (i-1)*n.sim
+        plot.phylo(ladderize(tr.list[[i]][[m.tr.ind]]), show.tip.label=F,
+                   main=paste('model =', treetypes[i]))
+    }
+    mtext("Medoid Tree", side=3, line=-21.5, outer=T, font=2, cex=2)
+    dev.off()
+    
+    save(dmat, mds, m.pts, file=paste(save.f.pre, 'mds_data.RData', sep=''))
+}
+
+```
+
+
+This is an example of heterochronously sampled genealogies. We use our weighted L2 distance
+
 
 
 
