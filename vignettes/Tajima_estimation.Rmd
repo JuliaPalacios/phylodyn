@@ -1,0 +1,182 @@
+---
+title: Estimation of an exponential population size trajectory by sampling Tajima’s
+  trees (n=10)
+author: "Lorenzo Cappello"
+date: "30/12/2019"
+output: html_document
+---
+
+This vignette displays a simulation study designed to approximate an exponential growth population size by sampling Tajima's trees, using `phylodyn`.
+
+We start by loading the required packages.
+
+```{r message=FALSE}
+library(phylodyn)
+library("rPython")
+library("phangorn")
+library("mvtnorm")
+library("ape")
+```
+
+We then set seed and sample size (n), mutation rate (mu), and a scaling factor (fact, set to 1 by default)
+```{r}
+set.seed(100+8)
+n<-10
+mu<-75
+fact<-1
+```
+
+
+We define an arbitrary population size trajectory (exponential for the purpose of this vignette)
+```{r}
+bottleneck_traj<-function(t){
+  result<-25*exp(-5*t)
+  return(result)
+}
+```
+
+1) SIMULATE DATA
+
+Data simulation proceeds in several steps
+
+We simulate a vector of n-1 coalescent times under the N(t) trajectory defined above
+```{r}
+simulation<-coalsim(samp_times =0, n_sampled = n, traj = bottleneck_traj)
+```
+
+We then simulatue a genealogy with branch lengths defined by the coalescent times simulated above. We also compute the corresponding F matrix representation
+```{r}
+tree1<-rcoal(n,br=simulation$intercoal_times)
+truthF<-create_F(tree1)
+```
+
+Last step of the data simulation is to superimpose mutations on the sampled genealogy
+```{r}
+data1<-simulate_data(mu,tree1)
+```
+
+We can check how many mutations we have sampled simply by 
+```{r}
+nrow(data1)
+```
+
+2) INITIALIZATION
+
+Second steps is initializing the MCMC
+
+We initialize the coalescent times and the effective population size
+
+```{r}
+initial<-initial_tajima(data1,name="Exp",mu=75,npoints=49,fact=1)
+```
+
+Then we initialize the MCMC states
+```{r}
+setupchain<-initial_MCMC(initial,ngrid=50,mu=75,n=10,alpha=.1,fact=fact)
+```
+
+Fix a number of  input variables for MCMC. 
+
+```{r}
+acp1<-0;acp2<-0;acp3<-0; acp2_t<-0
+currentval<-setupchain$currentval
+theta_list<-setupchain$theta_list
+prec_list<-setupchain$prec_list
+probs_list<-setupchain$probs_list
+times_list<-setupchain$times_list
+F_list<-setupchain$F_list
+```
+
+3) MCMC INFERENCE
+
+Fix the number of MCMC iterations
+```{r}
+Nsim<-101
+```
+Start the MCMC iteration
+
+```{r}
+for (j in 1:Nsim){
+  # Effective population size update
+  thetaup<-updateTheta(currentval,theta_list,prec_list,probs_list,const=1,j=1,nsites=mu,eps=.06)
+  currentval<-thetaup$currentval; theta_list<-thetaup$theta_list; prec_list<-thetaup$prec_list; probs_list<-thetaup$probs_list
+  acp1<-acp1+thetaup$acp
+
+  #Hamiltonian time update
+  timesup<-updateTimes(currentval,times_list,theta_list,prec_list,probs_list,const=1,nsites=mu,eps=0.007)
+  currentval<-timesup$currentval;theta_list<-timesup$theta_list; prec_list<-timesup$prec_list; probs_list<-timesup$probs_list; times_list<-timesup$times_list
+  acp2<-acp2+timesup$acp
+
+  #Local time update
+  timesup2<-updateSingleTime(currentval,theta_list,prec_list,probs_list,const=1,nsites=mu)
+  currentval<-timesup2$currentval; probs_list<-timesup2$probs_list; times_list<-timesup2$times_list
+  acp2_t<-acp2_t+timesup2$acp
+  
+  #Genealogy update
+  result<-currentval$result
+  FMatupMarkov_FREE<-updateFmat_Markov_FREE(currentval,F_list,probs_list,const=1,nsites=mu,initial$oldsuff,n)
+  currentval<-FMatupMarkov_FREE$currentval;F_list<-FMatupMarkov_FREE$F_list; probs_list<-FMatupMarkov_FREE$probs_list; 
+  acp3<-acp3+FMatupMarkov_FREE$acp
+  
+  if(j %% 100==0) {
+      # Print iteration
+    print(j)
+   }
+  
+
+}
+```
+
+Save all the output in a list 
+```{r}
+results<-list(acp1=acp1, acp2=acp2,acp3=acp3,currentval=currentval,times_list=times_list,probs_list=probs_list,theta_list=theta_list,prec_list=prec_list)
+```
+
+4) POSTERIOR ANALYSIS
+
+Here we want to plot the posterior of the effective population size. 
+
+We first extract time and log population size MCMC samples
+
+```{r}
+times_list=results$times_list
+theta_list=results$theta_list
+```
+
+And the last value of the chain
+
+```{r}
+currentval=results$currentval
+```
+
+We then subsample to account for the burnin and subsample frequency chosen 
+```{r}
+times_list2<-subsample(times_list,burnin=1,subsample=1)
+theta_list2<-subsample(theta_list,burnin=1,subsample=1)
+```
+
+Prepare the R object to plot
+```{r}
+res1a<-BNPR(data=tree1,lengthout=100,prec_alpha=.1)
+fmed = apply(exp(theta_list2), MARGIN = 1, FUN = stats::median,na.rm=TRUE)
+flow = apply(exp(theta_list2), MARGIN = 1, FUN = function(x) stats::quantile(x, .025, na.rm=TRUE) )
+fhi  = apply(exp(theta_list2), MARGIN = 1, FUN = function(x) stats::quantile(x, .975, na.rm=TRUE))
+intl<-currentval$grid[2]-currentval$grid[1]
+grid2<-cumsum(c(0,rep(intl,nrow(theta_list2))))
+res_BNPR3<-res1a
+fact<-1
+midpts2<-grid2[-1]-intl/2
+res_BNPR3$x<-midpts2/fact
+res_BNPR3$grid<-grid2/fact
+res_BNPR3$effpop<-fmed[-length(fmed)]/fact
+res_BNPR3$effpop975<-fhi[-length(fmed)]/fact
+res_BNPR3$effpop025<-flow[-length(fmed)]/fact
+fact<-1
+fact2<-1
+x<-seq(0,.8,by=.0001)
+```
+
+```{r, fig.width=8.5, fig.height=5}
+plot_BNPR(res_BNPR3,heatmaps=FALSE,heatmap_labels = FALSE,ylab="Ne(t)",main="(A) Ne(t) BESTT",xlim=c(.77,0),ylim=c(.001,10000))
+points(x,bottleneck_traj(x),type="l",lty=2)
+```
