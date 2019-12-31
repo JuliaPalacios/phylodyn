@@ -10,7 +10,8 @@ vignette: >
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+opts_chunk$set(echo = TRUE)
 ```
 
 This vignette demonstrates generation of F-matrices and a distance matrix between ranked tree shapes with $n=5$. a simple example  
@@ -25,7 +26,7 @@ data(tr_list)
 par(mfrow=c(2,3), mar=c(1,1,1,1), cex=1)
 for (i in 1:length(tr_list)) {
     ape::plot.phylo(ape::ladderize(tr_list[[i]]),
-                    directio='downward', main=paste('Tree', i),
+                    direction='downward', main=paste('Tree', i),
                     edge.width=2)
 }
 ```
@@ -55,25 +56,30 @@ print(dmat)
 
 We can visualize the MDS of those 5 trees:
 
-```{r, include=TRUE, message=FALSE, warning=FALSE}
+```{r, include=TRUE, message=FALSE, warning=FALSE, fig.width=6, fig.asp=0.83}
 mds <- cmdscale(dmat, eig=T, k=2)
-plot(mds$points[,1:2])  
+par(mar=c(3,3,1,1), cex=1.5)
+plot(mds$points, xlab='', ylab='', pch=4, lwd=6,
+     xlim=c(-1.5, 1.5), ylim=c(-1, 1.5))  
+text(mds$points[,1:2], labels=paste('tree', 1:5), col='red', cex=1.2)
 ```    
 
 We also compute the distances with adaptations of other tree distances to ranked tree shapes.
 To adapt other metrics, we assign unique labels to leaves:
 
-```{r, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.width=6, fig.height=4}
+```{r, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE, fig.width=6, fig.height=4}
 par(mfrow=c(2,3), mar=c(1,1,1,1), cex=1, xpd=T)
 for (i in 1:length(tr_list_lab)) {
-    ape::plot.phylo(ape::ladderize(tr_list_lab[[i]]), show.tip.label=F, direction='downward')
+    ape::plot.phylo(ape::ladderize(tr_list_lab[[i]]), 
+                    show.tip.label=F, direction='downward',
+                    main=paste('Tree', i), edge.width=2)
     ape::tiplabels(cex=1.2, frame='none', offset=0.2)
 }
 ```
 
 
 
-```{r, include=TRUE, message=FALSE, warning=FALSE}
+```{r, include=TRUE, results="hide", message=FALSE, warning=FALSE}
 n_tr <- length(tr_list)
 
 # ==== d1 ==== 
@@ -84,8 +90,6 @@ for (i in 1:n_tr) {
                                       dist.method="l1", weighted=FALSE)
     }
 }
-knitr::kable(round(d1.dmat, 2), caption='d_1')
-
 
 # ==== d2 ==== 
 d2.dmat <- matrix(0, nrow=n_tr, ncol=n_tr)
@@ -96,22 +100,15 @@ for (i in 1:n_tr) {
     }
 }
 
-knitr::kable(round(d2.dmat, 2), caption='d_2')
-
 # ==== d_{CP-RTS} ==== 
 cp.dmat <- matrix(0, nrow=n_tr, ncol=n_tr)
-
 tmp <- treetop::vecMultiDistUnlab(tr_list)
 cp.dmat[lower.tri(cp.dmat)] <- tmp
 cp.dmat <- t(cp.dmat)
 cp.dmat[lower.tri(cp.dmat)] <- tmp
 
-knitr::kable(round(cp.dmat, 2), caption='d_{CP-RTS}')
-
-
 # ==== d_{RF-RTS} ==== 
 rf.dmat <- matrix(0, nrow=n_tr, ncol=n_tr)
-
 tmp <- phangorn::RF.dist(tr_list_lab, normalize=FALSE, 
                          check.labels=TRUE,
                          rooted=TRUE)
@@ -119,79 +116,52 @@ rf.dmat[lower.tri(rf.dmat)] <- tmp
 rf.dmat <- t(rf.dmat)
 rf.dmat[lower.tri(rf.dmat)] <- tmp
 
-knitr::kable(round(rf.dmat, 2), caption='d_{RF-RTS}')
-
-
 # ==== d_{KC-RTS} ==== 
 kc1.dmat <- matrix(0, nrow=n_tr, ncol=n_tr)
-
 tmp <- treespace::multiDist(tr_list_lab, lambda=0)
 kc1.dmat[lower.tri(kc1.dmat)] <- tmp
 kc1.dmat <- t(kc1.dmat)
 kc1.dmat[lower.tri(kc1.dmat)] <- tmp
 
-knitr::kable(round(kc1.dmat, 2), caption='d_{KC-RTS}')
-
-
-# ==========================
-#       kc2 (KC-RTS')
-# ==========================
-# need to make sure that we relable the tips and internal nodes
+# ==== d_{KC-RTS*} ==== 
 kc2.dmat <- matrix(0, nrow=n_tr, ncol=n_tr)
-
 tmp <- treespace::multiDist(tr_list_lab, lambda=0.5)
 kc2.dmat[lower.tri(kc2.dmat)] <- tmp
 kc2.dmat <- t(kc2.dmat)
 kc2.dmat[lower.tri(kc2.dmat)] <- tmp
 
-print("kc2")
-knitr::kable(round(kc2.dmat, 2), caption='d_{KC-RTS*}')
-
-
-
 # ==== d_{BHV-RTS} ==== 
 bhv.dmat <- matrix(0, nrow=n_tr, ncol=n_tr)
-
 tmp <- distory::dist.multiPhylo(tr_list_lab)
 bhv.dmat[lower.tri(bhv.dmat)] <- tmp
 bhv.dmat <- t(bhv.dmat)
 bhv.dmat[lower.tri(bhv.dmat)] <- tmp
 
-knitr::kable(round(bhv.dmat, 2), caption='d_{BHV-RTS}')
-
-
-# ==== d_{BHV-RTS*} ==== 
+# ==== d_{BHV-RTS*} ====
 bhv2.dmat <- matrix(0, nrow=n_tr, ncol=n_tr)
 lab.perm <- combinat::permn(1:n_tr)
-
 tmp.vec <- rep(NA, 10)
 counter.vec <- 0
-
 for (i in 1:n_tr) {
     for (j in 1:n_tr) {
         print(c(i,j))
         if (i < j) {
             tr.1 <- tr_list_lab[[i]]
             tr.2 <- tr_list_lab[[j]]
-            
             tr.edge.1 <- tr.1$edge
             tr.edge.2 <- tr.2$edge
             tip.ind.1 <- which(tr.1$edge[,2] < 6)
             tip.ind.2 <- which(tr.2$edge[,2] < 6)
-            
             tmp.list.1 <- list()
             tmp.list.2 <- list()
             for (k in 1:length(lab.perm)) {
                 tr.edge.1[tip.ind.1, 2] <- lab.perm[[k]]
                 tr.edge.2[tip.ind.2, 2] <- lab.perm[[k]]
-                
                 tr.1$edge <- tr.edge.1
                 tr.2$edge <- tr.edge.2
-                
                 tmp.list.1[[k]] <- tr.1
                 tmp.list.2[[k]] <- tr.2
             }
-            
             tmp.dist <- rep(NA, length(lab.perm)*length(lab.perm))
             counter <- 0
             for (ind.1 in 1:length(lab.perm)) {
@@ -205,70 +175,75 @@ for (i in 1:n_tr) {
         }
     }
 }
-
 bhv2.dmat[lower.tri(bhv2.dmat)] <- tmp.vec
 bhv2.dmat <- t(bhv2.dmat)
 bhv2.dmat[lower.tri(bhv2.dmat)] <- tmp.vec
 
-knitr::kable(round(bhv2.dmat, 2), caption='d_{BHV-RTS*}')
-
-
-
 ```
 
+Print distance matrices of all distance functions computed.
+```{r, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+dmat.list <- list(d1.dmat, d2.dmat, cp.dmat, rf.dmat,
+                  kc1.dmat, kc2.dmat, bhv.dmat, bhv2.dmat)
+names(dmat.list) <- c('d_1', 'd_2', 'd_{CP-RTS}', 'd_{RF-RTS}',
+                      'd_{KC-RTS}', 'd_{KC-RTS*}', 'd_{BHV-RTS}',
+                      'd_{BHV-RTS*}')
+print(lapply(dmat.list, round, digits=2))
+```
 
 We now simulate 10 trees with n=50 tips from 5 different Beta-splitting distributions. The random trees are generated using the code by Maliet 2018. We compute the pairwaise L1 distance matrix of 50 by 50 and plot the MDS of the distance matrix:
 
-```{r, include=TRUE, message=FALSE, warning=FALSE}
-sim.tag <- T
-rand.seed <- 1
+```{r, include=TRUE, results="hide", message=FALSE, warning=FALSE}
+rand.seed <- 56
 treetypes <- c("balanced", "yule", "ab", "pda", "unbalanced")
 n.sim <- 10 # number of simulations
 n.tip <- 50 # number of tips
 n.model <- length(treetypes)
 set.seed(rand.seed)
-n.model <- length(treetypes)
-Fmat.list <- list()
-tr.list <- list()
+iso.Fmat.list <- list()
+iso.tr.list <- list()
 for (i in 1:length(treetypes)) {
-  t.mode <- treetypes[i]
-  print(t.mode)
-  alpha <- 1
-  eta <- 1
-  epsilon <- 0.001 # the same value used in Maliet, Gascuel, and Lambert (2018)
-        if (t.mode == 'balanced') {
-            beta <- 100
-        } else if (t.mode == 'yule') {
-            beta <- 0
-        } else if (t.mode == 'ab') {
-            beta <- -1
-        } else if (t.mode == 'pda') {
-            beta <- -1.5
-        } else if (t.mode == 'unbalanced') {
-            beta <- -1.9
-        }
-
-
-        tr.list[[i]] <- list()
-        Fmat.list[[i]] <-list()
-        for (j  in 1:n.sim) {
-            tmp.tr <- apTreeshape::simulate_tree(epsilon=epsilon, alpha=alpha, beta=beta, N=n.tip)
-            tr.list[[i]][[j]] <- tmp.tr
-            Fmat.list[[i]][[j]] <- gen_Fmat(tmp.tr)
-        }
+    t.mode <- treetypes[i]
+    print(t.mode)
+    alpha <- 1
+    eta <- 1
+    epsilon <- 0.001 # the same value used in Maliet, Gascuel, and Lambert (2018)
+    if (t.mode == 'balanced') {
+        beta <- 100
+    } else if (t.mode == 'yule') {
+        beta <- 0
+    } else if (t.mode == 'ab') {
+        beta <- -1
+    } else if (t.mode == 'pda') {
+        beta <- -1.5
+    } else if (t.mode == 'unbalanced') {
+        beta <- -1.9
+    }
+    
+    iso.tr.list[[i]] <- list()
+    iso.Fmat.list[[i]] <-list()
+    for (j  in 1:n.sim) {
+        tmp.tr <- apTreeshape::simulate_tree(epsilon=epsilon, alpha=alpha, beta=beta, N=n.tip)
+        iso.tr.list[[i]][[j]] <- tmp.tr
+        iso.Fmat.list[[i]][[j]] <- gen_Fmat(tmp.tr)
+    }
 }
 
-names(tr.list) <- treetypes
-names(Fmat.list) <- treetypes
+names(iso.tr.list) <- treetypes
+names(iso.Fmat.list) <- treetypes
 
-all.Fmat <- unlist(Fmat.list, recursive=FALSE)
-all.tr <- unlist(tr.list, recursive=FALSE)
-dmat.L1 <- matrix(0, nrow=length(all.tr), ncol=length(all.tr))
+```
 
-for (i in 2:length(all.tr)) {
+Compute L1 unweighted distance matrix.
+```{r, include=TRUE, results="hide", message=FALSE, warning=FALSE}
+iso.all.Fmat <- unlist(iso.Fmat.list, recursive=FALSE)
+iso.all.tr <- unlist(iso.tr.list, recursive=FALSE)
+dmat.L1 <- matrix(0, nrow=length(iso.all.tr), ncol=length(iso.all.tr))
+
+for (i in 2:length(iso.all.tr)) {
+    print(paste('computing distances from tree', i))
     for (j in 1:(i-1)) {
-        print(c(i,j))
-        dmat.L1[i,j] <- dist_pairwise(all.tr[[i]], all.tr[[j]],
+        dmat.L1[i,j] <- dist_pairwise(iso.all.tr[[i]], iso.all.tr[[j]],
                                       dist.method="l1", weighted=FALSE)
     }
 }
@@ -276,21 +251,26 @@ for (i in 2:length(all.tr)) {
 tmp <- c(dmat.L1[lower.tri(dmat.L1)])
 dmat.L1 <- t(dmat.L1)
 dmat.L1[lower.tri(dmat.L1)] <- tmp
+```
 
-mds <- cmdscale(dmat.L1, eig=T, k=3)
-mds.pts.l1 <- mds$points[,1:2]
-
-## Find medoid points for each model and plot
+Find sample Frechet mean tree and medoid tree from the distance matrix. 
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+## Find medoid tree index
 find.medoid <- function(dmat) {
     total.dist <- apply(dmat, 1, sum)
     return(which(total.dist == min(total.dist)))
 }
-addalpha <- function(colors, alpha=1.0) {
-    r <- col2rgb(colors, alpha=T)
-    # Apply alpha
-    r[4,] <- alpha*255
-    r <- r/255.0
-    return(rgb(r[1,], r[2,], r[3,], r[4,]))
+
+# Find sample frechet mean tree index
+find.frechet.mean <- function(dmat) {
+    total.dist <- apply(dmat^2, 1, sum)
+    return(which(total.dist == min(total.dist)))
+}
+
+f.pts <- list()
+for (i in 1:n.model) {
+    tr.ind <- ((i-1)*n.sim + 1):(i*n.sim)
+    f.pts[[i]] <- find.frechet.mean(dmat.L1[tr.ind, tr.ind]) + (i-1)*n.sim
 }
 
 m.pts <- list()
@@ -299,71 +279,218 @@ for (i in 1:n.model) {
     m.pts[[i]] <- find.medoid(dmat.L1[tr.ind, tr.ind]) + (i-1)*n.sim
 }
 
-col.set <- 'Dark2'
-col.vec <- RColorBrewer::brewer.pal(n.model, col.set)
-col.vec[1] <- "#E6AB02"
-cols <- addalpha(col.vec, 0.25)
-cols.sol <- addalpha(col.vec, 1.0)
+```
 
+Plot sample Frechet mean trees for each model.
+```{r, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE, fig.width=6, fig.height=4}
+## Plot sample Frechet mean trees.
+par(mfrow=c(2,3), oma=c(1,1,1,1), mar=c(1,1,1,1), xpd=T)
+for(i in 1:n.model) {
+    f.tr.ind <- f.pts[[i]][1] - (i-1)*n.sim
+    ape::plot.phylo(ape::ladderize(iso.tr.list[[i]][[f.tr.ind]]),
+                    show.tip.label=F, 
+                    main=paste('model =', treetypes[i]))
+}
+```
+
+Plot medoid trees for each model.
+```{r, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE, fig.width=6, fig.height=4}
+## Plot medoid trees.
+par(mfrow=c(2,3), oma=c(1,1,1,1), mar=c(1,1,1,1), xpd=T)
+for(i in 1:n.model) {
+    m.tr.ind <- m.pts[[i]][1] - (i-1)*n.sim
+    ape::plot.phylo(ape::ladderize(iso.tr.list[[i]][[m.tr.ind]]),
+                    show.tip.label=F, 
+                    main=paste('model =', treetypes[i]))
+}
+
+```
+
+Do MDS
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+mds <- cmdscale(dmat.L1, eig=T, k=3)
+```
+
+Plot 2D MDS of the simulated isochronous trees using unweighted L1 metric. 
+
+```{r, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE, fig.width=6, fig.height=4}
+mds.pts.l1 <- mds$points[,1:2]
+
+# For plotting colors
+addalpha <- function(colors, alpha=1.0) {
+    r <- col2rgb(colors, alpha=T)
+    r[4,] <- alpha*255
+    r <- r/255.0
+    return(rgb(r[1,], r[2,], r[3,], r[4,]))
+}
+cols.sol <- RColorBrewer::brewer.pal(n.model, 'Dark2')
+cols.sol[1] <- "#E6AB02"
+cols <- addalpha(cols.sol, 0.25)
+plt.cex <- 1.3
 plt.xlim <- c(min(mds.pts.l1[,1]), max(mds.pts.l1[,1]))
 plt.ylim <- c(min(mds.pts.l1[,2]), max(mds.pts.l1[,2]))
 
-
-par(mfrow=c(1,1), pty="s", mar=c(4,4,2,2), cex=1.5, xpd=T)
-plot(mds.pts.l1[1:n.sim,], 
-     col=cols[1], pch=16, cex=1, xaxt='n', yaxt='n',
+par(mfrow=c(1,1), pty="s", mar=c(0,0,0,7), cex=1.5, xpd=T)
+plot(mds.pts.l1[1:n.sim,],
+     col=cols[1], pch=16, cex=plt.cex, xaxt='n', yaxt='n',
      xlab='', ylab='', xlim=plt.xlim, ylim=plt.ylim)
 for (i in 2:n.model) {
     plt.ind <- ((i-1)*n.sim + 1):(i*n.sim)
-    points(mds.pts.l1[plt.ind, ], col=cols[i], pch=16, cex=1)
+    points(mds.pts.l1[plt.ind, ], col=cols[i], pch=16, cex=plt.cex)
 }
-
-# plot medoid points
 for (i in 1:n.model) {
     points(mds.pts.l1[m.pts[[i]], 1], mds.pts.l1[m.pts[[i]], 2],
-           bg=cols.sol[i], pch=24, 
-           cex=1.5, col="black", lwd = 2)
+           bg=cols.sol[i], pch=24,
+           cex=plt.cex, col="black", lwd=2)
 }
-
-legend("right", legend = treetypes,
-       inset=c(-0.7, 0),
-       col=cols.sol, bty='n',
-       pch=17, cex=1, pt.cex=1)
-
-## First 10 Eigenvalues and Goodness of Fit
-par(mfrow=c(1,2), pty="s", mar=c(4,4,2,2), cex=1.5)
-plot(mds$eig[1:10]/sum(mds$eig), type="h", lwd=3, las=1, col='blue',
-     xlab="Number of dimensions", ylab="Eigenvalues")
-plot(mds$eig/sum(mds$eig), type="l", lwd=3, las=1, col='blue',
-     xlab="Number of dimensions", ylab="Eigenvalues")
-print(mds$GOF)
-
-## Number of negative eigenvalues
-neg.eig.ind <- which(mds$eig < 0)
-neg.eig <- mds$eig[neg.eig.ind]
-print(paste('number of negative eigenvalues:', length(neg.eig.ind),
-            'of', length(mds$eig)))
-print(paste('(scaled) max', max(neg.eig)/sum(mds$eig),
-            'and (scaled) min', min(neg.eig)/sum(mds$eig)))
-
-## Plot medoid trees.
-par(mfrow=c(2,3), oma=c(1,1,1,1), mar=c(2,2,2,2), cex=1.5)
-for(i in 1:n.model) {
-    m.tr.ind <- m.pts[[i]][1] - (i-1)*n.sim
-    plot.phylo(ape::ladderize(tr.list[[i]][[m.tr.ind]]), show.tip.label=F,
-               main=paste('model =', treetypes[i]))
-}
-mtext("Medoid Tree", side=3, line=-21.5, outer=T, font=2, cex=2)
-
-
-    
+legend("right", legend = treetypes, inset=c(-0.5, 0),
+       col=cols.sol, bty='n', pch=17, cex=0.9, pt.cex=1.3)
 
 ```
 
 
 This is an example of heterochronously sampled genealogies. We first simulate... We use our weighted L2 distance... We plot the MDS... We observe that... . The Frechet mean is calculated as follows... The uncertainty measure is...
 
+Based on Julia's Simulation.Rmd
 
+Simulate a genealogy with constant effective population size with 10 tips at time 0 and 40 other tips with uniform sampling times.
+
+Consider two trajectories: uniform and bottleneck.
+
+
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+samp.times = c(0, sort(runif(40, 0, 8)))
+n.sampled = c(10, rep(1, 40))
+
+rand.seed <- 346
+n.sim <- 20 # number of simulations
+n.tip <- length(n.sampled) # number of tips
+n.model <- 2
+set.seed(rand.seed)
+hetero.tr.list <- vector("list", n.model)
+hetero.Fmat.list <- vector("list", n.model)
+
+for (i in 1:n.sim) {
+    # uniform trajectory
+    tmp.sim <- coalsim(samp_times=samp.times, n_sampled=n.sampled, 
+                       traj=unif_traj)
+    tmp.tr <- generate_newick(tmp.sim)
+    hetero.tr.list[[1]][[i]] <- tmp.tr$newick
+    hetero.Fmat.list[[1]][[i]] <- gen_Fmat(tmp.tr$newick)
+        
+    # bottleneck trajectory
+    tmp.sim <- coalsim(samp_times=samp.times, n_sampled=n.sampled,
+                       traj=bottleneck_traj, method="thin", 
+                       val_upper=11)
+    tmp.tr <- generate_newick(tmp.sim)
+    hetero.tr.list[[2]][[i]] <- tmp.tr$newick
+    hetero.Fmat.list[[2]][[i]] <- gen_Fmat(tmp.tr$newick)
+}
+
+treetypes <- c('uniform', 'bottleneck')
+names(hetero.tr.list) <- treetypes
+names(hetero.Fmat.list) <- treetypes
+
+```
+
+Compute L2 weighted distance matrix.
+```{r, include=TRUE, results="hide", message=FALSE, warning=FALSE}
+hetero.all.Fmat <- unlist(hetero.Fmat.list, recursive=FALSE)
+hetero.all.tr <- unlist(hetero.tr.list, recursive=FALSE)
+dmat.L2 <- matrix(0, nrow=length(hetero.all.tr), ncol=length(hetero.all.tr))
+
+for (i in 2:length(hetero.all.tr)) {
+    print(paste('computing distances from tree', i))
+    for (j in 1:(i-1)) {
+        dmat.L2[i,j] <- dist_pairwise(hetero.all.tr[[i]],
+                                      hetero.all.tr[[j]],
+                                      dist.method="l2", weighted=TRUE)
+    }
+}
+
+tmp <- c(dmat.L2[lower.tri(dmat.L2)])
+dmat.L2 <- t(dmat.L2)
+dmat.L2[lower.tri(dmat.L2)] <- tmp
+```
+
+
+Find sample Frechet mean tree and medoid tree from the distance matrix. 
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+f.pts <- list()
+for (i in 1:n.model) {
+    tr.ind <- ((i-1)*n.sim + 1):(i*n.sim)
+    f.pts[[i]] <- find.frechet.mean(dmat.L2[tr.ind, tr.ind]) + (i-1)*n.sim
+}
+
+m.pts <- list()
+for (i in 1:n.model) {
+    tr.ind <- ((i-1)*n.sim + 1):(i*n.sim)
+    m.pts[[i]] <- find.medoid(dmat.L2[tr.ind, tr.ind]) + (i-1)*n.sim
+}
+
+```
+
+
+Plot sample Frechet mean trees for each model.
+```{r, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE, fig.width=6, fig.height=3}
+
+## Plot sample Frechet mean trees.
+par(mfrow=c(1,2), oma=c(1,1,1,1), mar=c(1,1,1,1), xpd=T)
+for(i in 1:n.model) {
+    f.tr.ind <- f.pts[[i]][1] - (i-1)*n.sim
+    ape::plot.phylo(ape::ladderize(hetero.tr.list[[i]][[f.tr.ind]]),
+                    show.tip.label=F, 
+                    main=paste('model =', treetypes[i]))
+}
+```
+
+Plot medoid trees for each model.
+```{r, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE, fig.width=6, fig.height=3}
+## Plot medoid trees.
+par(mfrow=c(1,2), oma=c(1,1,1,1), mar=c(1,1,1,1), xpd=T)
+for(i in 1:n.model) {
+    m.tr.ind <- m.pts[[i]][1] - (i-1)*n.sim
+    ape::plot.phylo(ape::ladderize(hetero.tr.list[[i]][[m.tr.ind]]),
+                    show.tip.label=F, 
+                    main=paste('model =', treetypes[i]))
+}
+
+```
+
+Do MDS
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+mds <- cmdscale(dmat.L2, eig=T, k=3)
+```
+
+Plot 2D MDS of the simulated heterochronous trees using weighted L2  metric. 
+
+```{r, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE, fig.width=6, fig.height=4}
+mds.pts.l2 <- mds$points[,1:2]
+
+# For plotting colors
+cols.sol <- RColorBrewer::brewer.pal(10, 'Set3')[c(4,5)]
+cols <- addalpha(cols.sol, 0.25)
+plt.cex <- 1.3
+plt.xlim <- c(min(mds.pts.l2[,1]), max(mds.pts.l2[,1]))
+plt.ylim <- c(min(mds.pts.l2[,2]), max(mds.pts.l2[,2]))
+
+par(mfrow=c(1,1), pty="s", mar=c(0,0,0,7), cex=1.5, xpd=T)
+plot(mds.pts.l2[1:n.sim,],
+     col=cols[1], pch=16, cex=plt.cex, xaxt='n', yaxt='n',
+     xlab='', ylab='', xlim=plt.xlim, ylim=plt.ylim)
+for (i in 2:n.model) {
+    plt.ind <- ((i-1)*n.sim + 1):(i*n.sim)
+    points(mds.pts.l2[plt.ind, ], col=cols[i], pch=16, cex=plt.cex)
+}
+for (i in 1:n.model) {
+    points(mds.pts.l2[m.pts[[i]], 1], mds.pts.l2[m.pts[[i]], 2],
+           bg=cols.sol[i], pch=24,
+           cex=plt.cex, col="black", lwd=2)
+}
+legend("right", legend = treetypes, inset=c(-0.5, 0),
+       col=cols.sol, bty='n', pch=17, cex=0.9, pt.cex=1.3)
+
+```
 
 
 
