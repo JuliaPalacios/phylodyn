@@ -17,13 +17,6 @@ library("plyr")
 
 ```
 
-We also need to load the files with the R functions required for simulation and counting (to be downloaded from phyodyn\R and phylodyn\src)
-
-```{r}
-source("function countingv6.R")
-source("Tajima.R")
-python.load("Fsamp4.py")
-```
 
 Decide sample size (n), mutation rate (mu)
 
@@ -62,88 +55,40 @@ $mylist include for each row of the matrix a sublist
   $y #mutation (if x=1) or vector with #mutations (if x>1)
   
 
-Compute the Kingman perfect phylogeny.   
 
-```{r}
-nodesTaj<-oldsuff$nodes 
-nodes<-kingman_perphylo(nodesTaj)
-```
-
-Prepare list of active sampling nodes for the Kingman perfect phylogeny.
-```{r}
-sampnodes<-king_initial_sampnodes(nodes) #sampling nodes
-```
-and we attach random labels to each sequence
-```{r}
-labels<-label_king(nodes,sampnodes)
-```
 
 Choose number of importance sampling samples
 ```{r}
 N=5000
 ```
 
-Initialization for the importance sampling cycle
-```{r}
-t<-rep(1,n-1)
-saveTaj<-c()
-saveKing<-c()
-saveLT<-c()
-saveTS<-c()
-```
+
 
 Monte Carlo iteration 
 ```{r}
-for (i in 1:N){
-    #1st we sample Tajima tree
-    result <- python.call("F_sample", oldsuff) 
-    #Compute sampling probability over all possible nodes (in sublist [[1]])
-    #Sublist [[2]] and [[3]] give extra information not necessary for this step.
-    where_save2<-python.call("calcPF", result$change_F, result$F_nodes, result$family_size, oldsuff,t,"True")
-    #compute the statistics here 1/q(g)
-    saveTaj[i]<-1/where_save2[[1]]
-    
-    #As a by product we compute the tree shape statistics
-    TS<-tree_shape_discount(result)
-    saveTS[i]<-saveTaj[i]/TS
-    
-    #Now we sample a Kingman topology
-    kinglist<-kingtree_sample_v3(nodes,n,sampnodes,labels)
-    #compute the statistics here 1/q(g)
-    saveKing[i]<-1/prod(kinglist$prob)
-    
-    #As a by product we compute the  labelled tree shape statistics
-    LT<-labelled_trees_discount(kinglist)
-    saveLT[i]<-c(saveKing[i]/LT)
-    
-  }
+est<-siscount_tree(n,mu,N,oldsuff)
 ```
 
 
-Compute the estimate for the four different resolutions considered: 
+Compute the estimate for the four different resolutions considered. In the list one can find 
 `countTaj`: MonteCarlo estimate #ranked tree shapes
 `countKing`: MonteCarlo estimate #ranked labeled trees
 `countLT`: MonteCarlo estimate #labeled tree shapes
 `countTS`: MonteCarlo estimate #tree shapes
 
 ```{r}
-countTaj<-sum(saveTaj)/N
-countKing<-sum(saveKing)/N
-countLT<-sum(saveLT)/N
-countTS<-sum(saveTS)/N
-print(countTaj)
-print(countKing)
-print(countLT)
-print(TS)
+print(est$countTaj)
+print(est$countKing)
+print(est$countLT)
+print(est$TS)
 ```
 
-Finally, we can compute diagnostics for each of the resolution. 
+It includes also the diagnostics discussed in the paer. For example for the Tajima algorihm
 
 ```{r}
-diagTaj<-diagnotics(saveTaj,N)
-diagKing<-diagnotics(saveKing,N)
-diagLT<-diagnotics(saveLT,N)
-diagTS<-diagnotics(saveTS,N)
+print(est$cv2Taj)
+print(est$essTaj)
+print(est$qTaj)
 ```
 
 

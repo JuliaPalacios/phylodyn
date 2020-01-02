@@ -60,6 +60,13 @@ differentF<-function(res1,res2){
   return(list(freqF=freqF,tList=tList,Flist=Flist,tlist2=tlist2))
 }
 
+#' Compute Gusfield Tajima perfect phylogeny
+#' 
+#' @param data in the format of the function simulate_data
+#'   
+#' @return PP Tajima
+#' @export
+
 sufficient_stats<-function(data){
   #Update Dec 2017
   #This is the old function needed for 
