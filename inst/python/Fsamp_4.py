@@ -421,7 +421,7 @@ def sampleF(pool, total_vintage, change_F, F_mat, probs, family_size, F_nodes, i
     cnt = 0
     while len(pool) > 0:
 #         Tracer()()
-        node,node_prob = sampleNodeFromList(pool)
+        node,node_prob = sampleNodeFromList(pool,cnt)
         probs.append(node_prob)
         combineAndUpdate(node, cnt, total_vintage, change_F, F_mat, probs, family_size, F_nodes)
         
