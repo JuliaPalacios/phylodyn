@@ -278,7 +278,14 @@ def calcFamilySample(F_nodes,change_F, family_size):
 def comb2(total):
     # return number of choices of 2 from total
     return (total-1)*total/2.0
-def sampleNodeFromList(nodeList):
+
+
+
+# In[ ]:
+
+
+
+def sampleNodeFromList(nodeList, cnt, old_sample=None, start_changing=None):
     """
         Given a list of node, sample node according to number of non-zero choices in its lineage.
         
@@ -299,11 +306,33 @@ def sampleNodeFromList(nodeList):
     # if len(choice_prob)!=1:
         # raise Exception("choice prob error!")
     # choice = random.choice(nodeList) #FIX: uniform choice
-    choice = nodeList[np.random.randint(len(nodeList))]
-    return choice, 1.0/len(nodeList)
+    if old_sample is not None and cnt + 1 < start_changing:
+        choice = None
+        for i in range(len(nodeList)):
+            if nodeList[i].name == old_sample['total_vintage'][cnt]:
+                choice = nodeList[i]
+                break
+        assert choice is not None
+    else:
+         #Non uniform - proportional on the sample size
+         p = [len(node.lineage[0])+len(node.lineage[1]) for node in nodeList]
+         #print(p)
+         if not any(p):
+             raise Exception("probability error!" +str(nodeList))
+         prob = [1.0*pp/sum(p) for pp in p]
+         #choice = np.random.choice(nodeList, p=prob)
+         idx=np.random.choice(len(nodeList), p=prob)
+         choice=nodeList[idx]
+         #choice_prob = [pp for pp,node in (prob, nodeList) if node==choice]
+         choice_prob=prob[idx]
+         #if len(int(choice_prob))!=1:
+          #  raise Exception("choice prob error!")
+       
+    return choice, choice_prob
+         #Uniform
+#         choice = nodeList[np.random.randint(len(nodeList))]
+#    return choice, 1.0/len(nodeList)
 
-
-# In[ ]:
 
 def sampleFromLineage(lineage,cnt):
     """
