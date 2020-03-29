@@ -14,9 +14,15 @@ set.seed(1+8)
 library("rPython")
 library("ape")
 library("plyr")
+library("phylodyn")
 
 ```
 
+Load python function file
+```{r}
+path <- paste(system.file(package="phylodyn"), "python/Fsamp_4.py", sep="/")
+python.load(path)
+```
 
 Decide sample size (n), mutation rate (mu)
 
@@ -59,7 +65,7 @@ $mylist include for each row of the matrix a sublist
 
 Choose number of importance sampling samples
 ```{r}
-N=5000
+N=50
 ```
 
 
@@ -80,7 +86,7 @@ Compute the estimate for the four different resolutions considered. In the list 
 print(est$countTaj)
 print(est$countKing)
 print(est$countLT)
-print(est$TS)
+print(est$countTS)
 ```
 
 It includes also the diagnostics discussed in the paer. For example for the Tajima algorihm
