@@ -16,6 +16,13 @@ library("rPython")
 library("phangorn")
 library("mvtnorm")
 library("ape")
+library("truncnorm")
+```
+
+Load python function file
+```{r}
+path <- paste(system.file(package="phylodyn"), "python/Fsamp_hTDv2.py", sep="/")
+python.load(path)
 ```
 
 We then set seed and sample size (n), mutation rate (mu). Samp_times and n below mirrors Exp n=70 in Cappello et al. (2020) [see table 1]
