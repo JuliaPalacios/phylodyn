@@ -8,6 +8,16 @@ generate_data<-function(n,mu){
   return(oldsuff)
 }
 
+#' Compute Kingman perfect phylogeny
+#' 
+#' @param n sample size
+#' @param mu mutation parameter
+#' @param N SIS sample size
+#' @param oldsuff Tajima perfect phylogeny
+#'   
+#' @return estimates for the four resolutions and diagnostics.
+#' @export
+
 
 siscount_tree<-function(n,mu,N,oldsuff){
   
@@ -20,6 +30,8 @@ siscount_tree<-function(n,mu,N,oldsuff){
   sampnodes<-king_initial_sampnodes(nodes) #sampling nodes
   labels<-label_king(nodes,sampnodes)#sampling nodes
   
+  numbnodesKing<-length(unique(as.vector(nodes[,1:2])))
+  numbleafnodesKing<-length(nodes[nodes[,5]==1,1])
   
   #SIS initialization
   t<-rep(1,n-1)
@@ -34,7 +46,7 @@ siscount_tree<-function(n,mu,N,oldsuff){
     result <- python.call("F_sample", oldsuff) 
     where_save2<-python.call("calcPF", result$change_F, result$F_nodes, result$family_size, oldsuff,t,"True")
     saveTaj[i]<-1/where_save2[[1]]
-    TS<-tree_shape_discount(result)
+    TS<-tree_shape_discountv3(result)
     saveTS[i]<-saveTaj[i]/TS
     
     #Kingman
@@ -63,7 +75,8 @@ siscount_tree<-function(n,mu,N,oldsuff){
               essKing=diagKing$ess,seKing=diagKing$se,cv2LT=diagLT$cv2,
               essLT=diagLT$ess,seLT=diagLT$se,cv2TS=diagTS$cv2,
               essTS=diagTS$ess,seTS=diagTS$se,
-              qTaj=diagTaj$qmax,qKing=diagKing$qmax,qTS=diagTS$qmax,qLT=diagLT$qmax))
+              qTaj=diagTaj$qmax,qKing=diagKing$qmax,qTS=diagTS$qmax,qLT=diagLT$qmax,
+              nodesKing=numbnodesKing,leafnodesKing=numbleafnodesKing))
 }
 
 realtree<-function(n,mu){
@@ -185,6 +198,14 @@ sampleWithoutSurprisesProb <- function(x,prob) {
 ##################################
 
 #remove the collapsed nodes and label new nodes 
+
+#' Compute Kingman perfect phylogeny
+#' 
+#' @param nodes  it is the matrix description of the perfect phylogeny as describe by $nodes of the output of sufficent_stats
+#'   
+#' @return PP
+#' @export
+
 kingman_perphylo<-function(nodes){
 listnode<-unique(c(nodes[,1],nodes[,2]))
 leafnodes<-nodes[nodes[,5]==1,1]
@@ -207,6 +228,14 @@ return(nodes)
 }
 
 #create list of nodes to sample from 
+
+#' Define a list of nodes to sample from 
+#' 
+#' @param nodes  Kingman perfect phylogenty
+#'   
+#' @return active sampling nodes
+#' @export
+
 king_initial_sampnodes<-function(nodes) {
 #09/28/2018: Modified because not all nodes where in sampling nodes
 sampnodes<-list()
@@ -224,6 +253,15 @@ return(sampnodes)
 
 
 #label the node in the Kingman phylogeny 
+
+#' Add labels to the sequences
+#' 
+#' @param nodes  Kingman perfect phylogeny
+#' @param sampnodes  Kingman active sampling nodes
+#'   
+#' @return labeled information
+#' @export
+#' 
 label_king<-function(nodes,sampnodes){
 #09/28/2018: due to the changes in initial_sampnodes there was a bug here that has been fixed. 
 allnodes<-unique(c(nodes[,1],nodes[,2]))
@@ -459,6 +497,118 @@ tree_shape_discount<-function(result){
     permu<-1
   }
   return(permu)
+}
+
+
+
+
+tree_shape_discountv2<-function(result){
+  
+  result <- python.call("F_sample", oldsuff) 
+  permt<-c()
+  treelist<-c()
+  idx_0<-which(result$change_F==0)
+  
+  #
+  if(length(idx_0)!=0){
+    for (i in 1:length(idx_0)){
+      idt<-idx_0[i]
+      tree1<-result$F_nodes[[idt]][[1]][1]
+      treelist<-count_vintages(tree1,treelist,result)
+      tree2<-result$F_nodes[[idt]][[2]][1]
+      treelist<-count_vintages(tree2,treelist,result)
+      size1_2<-c(treelist[treelist[,2]==tree1,1],treelist[treelist[,2]==tree2,1])
+      if (length(unique(size1_2))==2){#the tree have different sizes
+        permt<-c(permt,factorial(sum(size1_2))/(factorial(size1_2[1])*factorial(size1_2[2])))
+      } else {#the tree have the same size. I need to check if they are equal or not. 
+        if (size1_2==1 || size1_2==2){#if it is a cherry or size 3 do not bother checking, they are identical
+             permt<-c(permt,factorial(sum(size1_2))/(2*factorial(size1_2[1])*factorial(size1_2[2])))
+        } else{# I need to verify if the two shapes are identical.
+          print(size1_2)
+          ChangeFtree1<-ChangeFSubTree(tree1,result)
+          ChangeFtree2<-ChangeFSubTree(tree2,result)
+          if (sum(abs(ChangeFtree1-ChangeFtree2))==0){#they are identical
+              permt<-c(permt,factorial(sum(size1_2))/(2*factorial(size1_2[1])*factorial(size1_2[2])))
+          } else {
+            permt<-c(permt,factorial(sum(size1_2))/(factorial(size1_2[1])*factorial(size1_2[2])))
+          }
+        }
+      }
+      treelist<-rbind(treelist,c((sum(size1_2)+1),idt))
+    }
+    permu<-prod(permt)
+  } else {
+    permu<-1
+  }
+  return(permu)
+}
+
+
+tree_shape_discountv3<-function(result){
+  
+  result <- python.call("F_sample", oldsuff) 
+  permt<-c()
+  treelist<-c()
+  idx_0<-which(result$change_F==0)
+  
+  #
+  if(length(idx_0)!=0){
+    for (i in 1:length(idx_0)){
+      idt<-idx_0[i]
+      tree1<-result$F_nodes[[idt]][[1]][1]
+      #treelist<-count_vintages(tree1,treelist,result)
+      size1<-result$family_size[tree1]-1
+      tree2<-result$F_nodes[[idt]][[2]][1]
+      #treelist<-count_vintages(tree2,treelist,result)
+      size2<-result$family_size[tree2]-1
+      size1_2<-c(size1,size2)
+      if (length(unique(size1_2))==2){#the tree have different sizes
+        permt<-c(permt,factorial(sum(size1_2))/(factorial(size1_2[1])*factorial(size1_2[2])))
+      } else {#the tree have the same size. I need to check if they are equal or not. 
+        if (size1_2==1 || size1_2==2){#if it is a cherry or size 3 do not bother checking, they are identical
+          permt<-c(permt,factorial(sum(size1_2))/(2*factorial(size1_2[1])*factorial(size1_2[2])))
+        } else{# I need to verify if the two shapes are identical.
+          ChangeFtree1<-ChangeFSubTree(tree1,result)
+          ChangeFtree2<-ChangeFSubTree(tree2,result)
+          if (sum(abs(ChangeFtree1-ChangeFtree2))==0){#they are identical
+            permt<-c(permt,factorial(sum(size1_2))/(2*factorial(size1_2[1])*factorial(size1_2[2])))
+          } else {
+            permt<-c(permt,factorial(sum(size1_2))/(factorial(size1_2[1])*factorial(size1_2[2])))
+          }
+        }
+      }
+      #treelist<-rbind(treelist,c((sum(size1_2)+1),idt))
+    }
+    permu<-prod(permt)
+  } else {
+    permu<-1
+  }
+  return(permu)
+}
+
+
+
+#function to recvoer the change_F related to a given subtree
+ChangeFSubTree<-function(tree,result){
+    subtrees=tree
+    tocheck=subtrees
+    while(length(tocheck)>0){
+      tree=tocheck[1]
+      tocheck=tocheck[-1]
+      if (result$change_F[tree]==0){
+        subtree1=result$F_nodes[[tree]][[1]][1]
+        subtree2=result$F_nodes[[tree]][[2]][1]
+        subtrees=c(subtree1,subtree2,subtrees)
+        if (result$change_F[[subtree1]]!=2){tocheck=c(tocheck,subtree1)}
+        if (result$change_F[[subtree2]]!=2){tocheck=c(tocheck,subtree2)}
+      } else {
+        subtree=result$F_nodes[[tree]][1]
+        subtrees=c(subtree,subtrees)
+        if (result$change_F[[subtree]]!=2){tocheck=c(tocheck,subtree)}
+      }
+      SubChangeF=result$change_F[sort(subtrees)]
+    }
+    return(SubChangeF)
 }
 
 #function to count vintages 

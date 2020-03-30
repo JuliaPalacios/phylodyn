@@ -48,13 +48,21 @@ ESS = function(q_cur, l_cur, loglik, cholC, ...)
   return(list(q=q, u=l, Ind=1))
 }
 
-ESS2 = function(q_cur, l_cur, loglik, prec, first_elem_prec, ...)
+ESS_wrapper = function(lik_init, loglik, l_cur, f, kappa, cholC, invC, alpha, beta)
+{
+  #ll = function(f) coal_loglik(init = lik_init, f = f)
+  res = ESS(q_cur = f, l_cur = l_cur, loglik = loglik, cholC = cholC/sqrt(kappa))
+  pos_summ = list(loglik = res$u)
+  pos_summ$logpri = log_mvnorm_prior(x = res$q, prec = invC * kappa) +
+    log_kappa_prior(kappa = kappa, alpha = alpha, beta = beta)
+  pos_summ$logpos = pos_summ$logpri + pos_summ$loglik
+  res$pos_summ = pos_summ
+}
+
+ESS_old = function(q_cur, l_cur, loglik, cholC)
 {  
   # choose ellipse
-  # nu = crossprod(cholC, stats::rnorm(length(q_cur)))
-  first_elem = rnorm(1, mean = 0, sd = sqrt(1 / first_elem_prec))
-  diffs = c(0, rnorm(length(q_cur) - 1, mean = 0, sd = sqrt(1 / prec)))
-  nu = first_elem + cumsum(diffs)
+  nu = t(cholC) %*% stats::rnorm(length(q_cur))
   
   # log-likelihood threshold
   u = stats::runif(1)
@@ -65,11 +73,14 @@ ESS2 = function(q_cur, l_cur, loglik, prec, first_elem_prec, ...)
   t_min <- t-2*pi
   t_max <- t
   
-  q <- q_cur*cos(t) + nu*sin(t)
-  l <- loglik(q, ...)
-  
-  while (l < logy)
+  while (1)
   {
+    q <- q_cur*cos(t) + nu*sin(t)
+    l = loglik(q)
+    if (l > logy)
+    {
+      return(list(q=q, l=l, Ind=1))
+    }
     # shrink the bracket and try a new point
     if (t < 0)
     {
@@ -80,62 +91,9 @@ ESS2 = function(q_cur, l_cur, loglik, prec, first_elem_prec, ...)
       t_max <- t
     }
     
-    t <- stats::runif(1, t_min, t_max)
-    q <- q_cur*cos(t) + nu*sin(t)
-    
-    l <- loglik(q, ...)
+    t = stats::runif(1, t_min, t_max)
   }
-  
-  return(list(q=q, u=l, Ind=1))
 }
-
-
-# ESS_wrapper = function(lik_init, loglik, l_cur, f, kappa, cholC, invC, alpha, beta)
-# {
-#   #ll = function(f) coal_loglik(init = lik_init, f = f)
-#   res = ESS(q_cur = f, l_cur = l_cur, loglik = loglik, cholC = cholC/sqrt(kappa))
-#   pos_summ = list(loglik = res$u)
-#   pos_summ$logpri = log_mvnorm_prior(x = res$q, prec = invC * kappa) +
-#     log_kappa_prior(kappa = kappa, alpha = alpha, beta = beta)
-#   pos_summ$logpos = pos_summ$logpri + pos_summ$loglik
-#   res$pos_summ = pos_summ
-# }
-# 
-# ESS_old = function(q_cur, l_cur, loglik, cholC)
-# {  
-#   # choose ellipse
-#   nu = t(cholC) %*% stats::rnorm(length(q_cur))
-#   
-#   # log-likelihood threshold
-#   u = stats::runif(1)
-#   logy <- l_cur + log(u)
-#   
-#   # draw a initial proposal, also defining a bracket
-#   t = 2*pi*stats::runif(1)
-#   t_min <- t-2*pi
-#   t_max <- t
-#   
-#   while (1)
-#   {
-#     q <- q_cur*cos(t) + nu*sin(t)
-#     l = loglik(q)
-#     if (l > logy)
-#     {
-#       return(list(q=q, l=l, Ind=1))
-#     }
-#     # shrink the bracket and try a new point
-#     if (t < 0)
-#     {
-#       t_min <- t
-#     }
-#     else
-#     {
-#       t_max <- t
-#     }
-#     
-#     t = stats::runif(1, t_min, t_max)
-#   }
-# }
 
 #### Metropolis-Adjusted Langevin (MALA) Algorithm ####
 # This function generates one sample given previous state.
@@ -331,6 +289,77 @@ HMC = function (q_cur, u_cur, du_cur, U, eps=.2, L=5, rand_leap=TRUE)
     return (list(q = q_cur, u = u_cur, du = du_cur, Ind = 0, pos_summ = U(q_cur)))
 }
 
+# q_cur=currentval$timesL[[1]]
+# tus=currentval$tus2L[[1]]
+# U=currentval$Ufun2[[1]]
+# theta=currentval$theta
+# result=currentval$resultL[[1]]
+# grid=currentval$grid
+# eps=.004;L=8;
+# rand_leap=TRUE
+
+HMC_times = function (q_cur, nsites, tus, U, theta,result, grid, eps=.2, L=5, rand_leap=TRUE)
+{  
+  # initialization
+  q = log(q_cur)
+  D = length(q)
+  u = tus$logpos
+  du = tus$dlogpos *exp(q) #I changed this because of numerical stability. Sampling log(times) avoids having negative times (Sep 2018)
+  #print("part 0")
+    # sample momentum
+  p = stats::rnorm(D)
+  #print("part 0.1")
+  # calculate current energy
+  E_cur = u + sum(p^2)/2
+  
+  # Make a half step for momentum at the beginning
+  p = p - eps/2 * du
+  
+  #print("part 1")
+  if (rand_leap)
+    randL = ceiling(stats::runif(1)*L)
+  else
+    randL = ceiling(L)
+  
+  
+  #print("part 2")
+  # Alternate full steps for position and momentum
+  for (l in 1:randL)
+  {
+    # Make a full step for the position
+    #print(paste("l is",l,sep=""))
+    q = q + eps * p
+    
+   # q[q<0]<-.0000001
+    #print(paste("length",length(grid),sep=""))
+    #print(q)
+    pos_summ =U(exp(q),nsites, result, grid, theta,0,TRUE)
+    du = pos_summ$dlogpos * exp(q)
+    # Make a full step for the momentum, except at end of trajectory
+    if (l!=randL)
+      p = p - eps * du
+  }
+  
+  # Make a half step for momentum at the end.
+  p = p - eps/2 * du
+  
+  # Evaluate potential and kinetic energies at start and end of trajectory
+  #pos_summ = U(q,grid,theta,F)
+  u = pos_summ$logpos
+  E_prp = u + sum(p^2)/2
+  
+  # Accept or reject the state at end of trajectory, returning either
+  # the position at the end of the trajectory or the initial position
+  #rjmcmc accounts for the change of dimension in theta
+  
+  logAP = -E_prp + E_cur 
+  #+ pos_summ$rjmcmc
+  
+  if(is.finite(logAP) && (log(stats::runif(1))<min(0,logAP)))
+    return (list(q = exp(q), Ind = 1, grid=pos_summ$grid, pos_summ = pos_summ))
+  else
+    return (list(q = q_cur, Ind = 0, grid=grid, pos_summ = tus))
+}
 #### Split Hamiltonian Monte Carlo ####
 # This is splitHMC method by (Gaussian) approximation.
 # This function generates one sample given previous state.
@@ -414,27 +443,87 @@ splitHMC = function (q_cur, u_cur, du_cur, U, rtEV, EVC, eps=.1, L=5, rand_leap=
     return (list(q = q_cur, u = u_cur, du = du_cur, Ind = 0, pos_summ = U(q_cur)))
 }
 
+# q_cur<-currentval$theta;
+# u_cur<-currentval$us1L; du_cur<-currentval$dus1L; U<-currentval$Ufun1; lik_init<-currentval$lik_initL
+# invC<-currentval$invC; rtEV<-currentval$rtEV; EVC<-currentval$EVC; eps=.1; L=5; rand_leap=TRUE
+#gaussprior<-currentval$gaussprior
+# 
+
+
+splitHMC2 = function (q_cur, u_cur, du_cur, U, lik_init,invC, rtEV, EVC, eps=.1, L=5, rand_leap=TRUE)
+{
+  # initialization
+  q = q_cur
+  D = length(q)
+  u = u_cur
+  du = du_cur
+  
+  # sample momentum
+  p = stats::rnorm(D)
+  
+  # calculate current energy
+  E_cur = u + sum(p^2)/2
+  
+  
+  if (rand_leap)
+    randL = ceiling(stats::runif(1)*L)
+  else
+    randL = ceiling(L)
+  
+  p = p - eps/2*du
+  qT = rtEV*(t(EVC)%*%q[-D])
+  pT = t(EVC)%*%p[-D]
+  A = t(qT)%*%qT
+  # Alternate full steps for position and momentum
+  for (l in 1:randL)
+  {
+    p[D] <- p[D] - eps/2*A/2*exp(q[D])
+    q[D] <- q[D] + eps/2*p[D]
+    
+    # Make a full step for the middle dynamics
+    Cpx = complex(modulus = 1, argument = -rtEV*exp(q[D]/2)*eps)*complex(real = qT*exp(q[D]/2), imaginary = pT)
+    qT = Re(Cpx)*exp(-q[D]/2)
+    pT = Im(Cpx)
+    q[-D] = EVC%*%(qT/rtEV)
+    
+    # Make a half step for the last half dynamics
+    A=t(qT)%*%qT
+    
+    q[D] <- q[D] + eps/2*p[D]
+    p[D] <- p[D] - eps/2*A/2*exp(q[D])
+    
+    du = U(q,lik_init,invC, grad = TRUE)
+    if(l!=randL)
+    {
+      pT = pT - eps*(t(EVC)%*%du[-D])
+      p[D] = p[D] - eps*du[D]
+    }
+  }
+  p[-D] = EVC%*%pT - eps/2*du[-D]
+  p[D] = p[D] - eps/2*du[D]
+  
+  # Evaluate potential and kinetic energies at start and end of trajectory
+  pos_summ = U(q,lik_init,invC)
+  u = pos_summ$logpos
+  E_prp = u + sum(p^2)/2
+  
+  # Accept or reject the state at end of trajectory, returning either
+  # the position at the end of the trajectory or the initial position
+  logAP = -E_prp + E_cur
+  
+  if( is.finite(logAP) && (log(stats::runif(1))<min(0,logAP)) )
+    return (list(q = q, u = u, du = du, Ind = 1, pos_summ = pos_summ))
+  else
+    return (list(q = q_cur, u = u_cur, du = du_cur, Ind = 0, pos_summ = U(q_cur,lik_init,invC)))
+}
+
 #### Helper functions ####
 
 # Normal log-prior
 log_mvnorm_prior <- function(x, prec, mu=rep(0, length(x)))
 {
   x_mu = x - mu
-  firstterm = 0.5 * spam::determinant(prec)$modulus
-  secondterm = -0.5 * crossprod(x_mu, prec %*% x_mu)
-  return(as.numeric(firstterm + secondterm))
-}
-
-log_inorm_prior <- function(x, prec, mu=rep(0, length(x)))
-{
-  x_mu = x - mu
-  return(sum(dnorm(x_mu, sd = prec ^ -0.5, log = TRUE)))
-}
-
-log_field_prior <- function(f, prec, first_elem_prec)
-{
-  result = dnorm(f[1], mean = 0, sd = sqrt(1 / first_elem_prec), log = TRUE) +
-    sum(dnorm(diff(f), mean = 0, sd = sqrt(1 / prec), log = TRUE))
+  return(0.5 * spam::determinant(prec)$modulus - 0.5 * crossprod(x_mu, prec %*% x_mu))
 }
 
 # Gamma log-prior for kappa
@@ -455,104 +544,35 @@ log_betas_prior <- function(betas, betas_prec = diag(1/100, 1/100))
   return(log_mvnorm_prior(x = betas, prec = betas_prec))
 }
 
-log_betas_prior2 <- function(betas, betas_prec = 0.01)
-{
-  return(log_inorm_prior(x = betas, prec = betas_prec))
-}
-
 # Computes a summary of the posterior
 compute_pos_summ = function(samp_alg, loglikf, f, kappa, invC, alpha, beta, lik_init,
                             betas = NULL, betas_prec = diag(1/100, 1/100), covar_vals = NULL,
-                            loglik = NULL, logpri = NULL, noprec=FALSE)
+                            loglik = NULL, logpri = NULL)
 {
   if (is.null(loglik))
   {
-    if (samp_alg == "MH" || samp_alg == "fixed")
+    if (samp_alg %in% c("fixed", "MH"))
       loglik = loglikf(f, lik_init, betas, covar_vals)
     else if (samp_alg == "ESS")
       loglik = loglikf(c(f, betas), lik_init, length(f)+1, covar_vals)
     else
       loglik = loglikf(f, lik_init)
   }
-  result = data.frame(loglik)
   
   if (is.null(logpri))
   {
-    logfieldpri = log_mvnorm_prior(x = f, prec = invC * kappa)
-    result$logfieldpri = logfieldpri
-    
-    logpri = logfieldpri
-    
-    if (!noprec)
-    {
-      logprecpri = log_kappa_prior(kappa = kappa, alpha = alpha, beta = beta)
-      result$logprecpri = logprecpri
-      
-      logpri = logpri + logprecpri
-    }
-    
+    logpri = log_mvnorm_prior(x = f, prec = invC * kappa) +
+      log_kappa_prior(kappa = kappa, alpha = alpha, beta = beta)
     if (samp_alg %in% c("MH", "ESS"))
     {
       logbetapri = log_betas_prior(betas, betas_prec)
-      result$logbetapri = logbetapri
-      
       logpri = logpri + logbetapri
     }
   }
-  result$logpri = logpri
   
   logpos = logpri + loglik
-  result$logpos = logpos
   
-  return(result)
-}
-
-compute_pos_summ2 = function(samp_alg, loglikf, f, prec, first_elem_prec,
-                             alpha, beta, lik_init, betas = NULL,
-                             covar_vals = NULL, covar_betas = NULL,
-                             pow_covar_vals = NULL, pow_covar_betas = NULL, 
-                             betas_prec = 0.01, noprec=FALSE)
-{
-  if (samp_alg == "MH" || samp_alg == "fixed")
-  {
-    loglik = ESS_betas_ll2(f = f, lik_init = lik_init, betas = betas,
-                           covar_vals = covar_vals, covar_betas = covar_betas,
-                           pow_covar_vals = pow_covar_vals,
-                           pow_covar_betas = pow_covar_betas)
-  }
-  else
-    loglik = ESS_none_ll(f = f, lik_init = lik_init)
-  
-  result = data.frame(loglik)
-  
-  logfieldpri = log_field_prior(f = f, prec = prec, first_elem_prec = first_elem_prec)
-  result$logfieldpri = logfieldpri
-  
-  logpri = logfieldpri
-  
-  if (!noprec)
-  {
-    logprecpri = log_kappa_prior(kappa = prec, alpha = alpha, beta = beta)
-    result$logprecpri = logprecpri
-    
-    logpri = logpri + logprecpri
-  }
-  
-  if (samp_alg == "MH")
-  {
-    logbetapri = log_betas_prior2(betas = c(betas, covar_betas, pow_covar_betas),
-                                  betas_prec = betas_prec)
-    result$logbetapri = logbetapri
-    
-    logpri = logpri + logbetapri
-  }
-  
-  result$logpri = logpri
-  
-  logpos = logpri + loglik
-  result$logpos = logpos
-  
-  return(result)
+  return(list(loglik = loglik, logpri = logpri, logpos = logpos))
 }
 
 # Intrinsic precision matrix
@@ -660,8 +680,7 @@ calculate_estimates = function(logfmat, params, grid)
 #MH_betas = function(curr_betas, lik_init, f, curr_pos_summ, proposal_sds = c(0.1, 0.1))
 MH_betas = function(curr_betas, curr_pos_summ, loglikf, lik_init, f, kappa,
                     invC, alpha, beta, betas_prec = diag(1/100, 1/100),
-                    covar_vals = covar_vals, proposal_sds = c(0.1, 0.1),
-                    noprec = FALSE)
+                    covar_vals = covar_vals, proposal_sds = c(0.1, 0.1))
 {
   # Metropolis step for betas
   new_betas = stats::rnorm(n = length(curr_betas), mean = curr_betas, sd = proposal_sds)
@@ -669,8 +688,7 @@ MH_betas = function(curr_betas, curr_pos_summ, loglikf, lik_init, f, kappa,
   new_pos_summ = compute_pos_summ(samp_alg = "MH", loglikf = loglikf, f = f,
                                   kappa = kappa, invC = invC, lik_init = lik_init,
                                   alpha = alpha, beta = beta, betas = new_betas,
-                                  betas_prec = betas_prec, covar_vals = covar_vals,
-                                  noprec = noprec)
+                                  betas_prec = betas_prec, covar_vals = covar_vals)
   #new_ll = coal_samp_loglik(init = lik_init, f = f, beta0 = new_beta0, beta1 = new_beta1)
   
   if (new_pos_summ$logpos > curr_pos_summ$logpos ||
@@ -688,7 +706,7 @@ MH_betas = function(curr_betas, curr_pos_summ, loglikf, lik_init, f, kappa,
 MH_betas_rscan = function(curr_betas, curr_pos_summ, loglikf, lik_init, f, kappa,
                           invC, alpha, beta, betas_prec = diag(1/100, 1/100),
                           covar_vals = covar_vals, proposal_sds = rep(0.1, length(curr_betas)),
-                          niter = length(curr_betas), noprec = FALSE)
+                          niter = length(curr_betas))
 {
   n = length(curr_betas)
   rscan = sample(x = 1:n, size = niter, replace = TRUE)
@@ -702,49 +720,7 @@ MH_betas_rscan = function(curr_betas, curr_pos_summ, loglikf, lik_init, f, kappa
     new_pos_summ = compute_pos_summ(samp_alg = "MH", loglikf = loglikf, f = f,
                                     kappa = kappa, invC = invC, lik_init = lik_init,
                                     alpha = alpha, beta = beta, betas = new_betas,
-                                    betas_prec = betas_prec, covar_vals = covar_vals,
-                                    noprec = noprec)
-    
-    if (new_pos_summ$logpos > curr_pos_summ$logpos ||
-        log(stats::runif(n = 1)) < new_pos_summ$logpos - curr_pos_summ$logpos)
-    {
-      curr_betas = new_betas
-      curr_pos_summ = new_pos_summ
-      inds[[idx]] = c(inds[[idx]], 1)
-    }
-    else
-    {
-      new_betas = curr_betas
-      inds[[idx]] = c(inds[[idx]], 0)
-    }
-  }
-  
-  result = list(betas = curr_betas, pos_summ = curr_pos_summ, inds = inds)
-  
-  return(result)
-}
-
-MH_betas_rscan2 = function(curr_betas, curr_pos_summ, loglikf, lik_init, f, prec,
-                           first_elem_prec, alpha, beta, betas_prec = diag(1/100, 1/100),
-                           covar_vals = NULL, covar_betas = NULL,
-                           pow_covar_vals = NULL, pow_covar_betas = NULL,
-                           proposal_sds = rep(0.1, length(curr_betas)),
-                           niter = length(curr_betas), noprec = FALSE)
-{
-  n = length(curr_betas)
-  rscan = sample(x = 1:n, size = niter, replace = TRUE)
-  inds = vector(mode="list", length=n)
-  
-  new_betas = curr_betas
-  for (idx in rscan)
-  {
-    new_betas[idx] = stats::rnorm(n = 1, mean = curr_betas[idx], sd = proposal_sds[idx])
-    
-    new_pos_summ = compute_pos_summ2(samp_alg = "MH", loglikf = loglikf, f = f,
-                                    prec = prec, first_elem_prec = first_elem_prec,
-                                    lik_init = lik_init, alpha = alpha, beta = beta,
-                                    betas = new_betas, betas_prec = betas_prec,
-                                    covar_vals = covar_vals, noprec = noprec)
+                                    betas_prec = betas_prec, covar_vals = covar_vals)
     
     if (new_pos_summ$logpos > curr_pos_summ$logpos ||
         log(stats::runif(n = 1)) < new_pos_summ$logpos - curr_pos_summ$logpos)
@@ -791,6 +767,138 @@ whiten_kappa = function(kappa, f, lik_init, cholC, invtcholC, loglikf, u, alpha,
 }
 
 # This serves as a black box to sample distributions using HMC algorithms provided data and basic settings. #
+#It has been adapted to add the sampling of Tajima's genealogies
+sampling2 = function(data, para, alg, setting, init, verbose=TRUE, printevery=100)
+{
+  # pass the data and parameters
+  lik_init = data$lik_init # f_offset = data$f_offset
+  Ngrid = lik_init$ng+1
+  #alpha = para$alpha
+  #beta = para$beta
+  #invC = para$invC
+  #rtEV = para$rtEV
+  #EVC = para$EVC
+  cholC = para$cholC
+  
+  # MCMC sampling setting
+  stepsz = setting$stepsz
+  Nleap  = setting$Nleap
+  
+  if (alg=="HMC" | alg == "splitHMC" | alg == "HMC2")
+  {
+    rand_leap = setting$rand_leap
+  }
+  
+ 
+  # storage of posterior samples
+  NSAMP = setting$NSAMP
+  NBURNIN = setting$NBURNIN
+  NSUBSAMP = setting$NSUBSAMP
+  recorded_iters = seq.int(from = NBURNIN+1, to = NSAMP, by = NSUBSAMP)
+  
+  samp = matrix(NA, length(recorded_iters), Ngrid) # all parameters together
+  acpi = 0
+  acpt = rep(NA, length(recorded_iters))
+  
+  # storage of log prior, log likelihood, and log posterior
+  logpri = rep(NA, length(recorded_iters))
+  loglik = rep(NA, length(recorded_iters))
+  logpos = rep(NA, length(recorded_iters))
+  
+  # initialization
+  theta = init$theta
+  u = init$u
+  du = init$du
+  
+  # if (alg %in% c("ESSwS-MH", "ESSwS-ESS"))
+  # {
+  #   betas = init$betas
+  #   betas_out = NULL
+  # }
+  if (alg == "HMC2")
+  { #This is the implementation for sampling coal times
+    #The alternative is to do a Gaussian approximation to the coalescent desity times the GP on N(t)
+    Ufun = function(theta, grad=FALSE) U(theta = theta, init = lik_init, invC = invC,
+                                         alpha = alpha, beta = beta, grad = grad)
+    colnames(samp) = c(paste("f", 1:(Ngrid-1), sep = ""), "tau")
+  }
+  
+  else if (alg == "HMC")
+  {
+    Ufun = function(theta, grad=FALSE) U(theta = theta, init = lik_init, invC = invC,
+                                         alpha = alpha, beta = beta, grad = grad)
+    colnames(samp) = c(paste("f", 1:(Ngrid-1), sep = ""), "tau")
+  }
+  else if (alg == "splitHMC")
+  {
+    Ufun = function(theta, grad=FALSE) U_split(theta = theta, init = lik_init, invC = invC,
+                                               alpha = alpha, beta = beta, grad = grad)
+    colnames(samp) = c(paste("f", 1:(Ngrid-1), sep = ""), "tau")
+  }
+ 
+  # start MCMC run
+  start_time = Sys.time()
+  cat('Running ', alg ,' sampling...\n')
+  for(iter in 1:NSAMP)
+  {
+    if (alg == "HMC")
+    {
+      #Ufun = function(theta, grad=FALSE) U(theta = theta, init = lik_init, invC = invC,
+      #                                     alpha = alpha, beta = beta, grad = grad)
+      res = HMC(theta, u, du, Ufun, stepsz, Nleap, rand_leap)
+    }
+    else if (alg == "splitHMC")
+    {
+      #Ufun = function(theta, grad=FALSE) U_split(theta = theta, init = lik_init, invC = invC,
+      #                                           alpha = alpha, beta = beta, grad = grad)
+      res = splitHMC(theta, u, du, Ufun, rtEV, EVC, stepsz, Nleap, rand_leap)
+    }
+   
+    else
+    {
+      stop('The algorithm is not in the list!')
+    }
+    
+    acpi <- acpi+res$Ind
+    
+    theta[1:Ngrid] <- res$q
+    
+    u <- res$u
+    if (alg %in% c('HMC','splitHMC','MALA'))
+      du <- res$du
+    
+    # save posterior samples after burnin
+    output_index = match(x = iter, table = recorded_iters)
+    if (!is.na(output_index))
+    {
+      samp[output_index, ] <- theta
+      acpt[output_index] <- res$Ind
+      
+      logpri[output_index] <- res$pos_summ$logpri
+      loglik[output_index] <- res$pos_summ$loglik
+      logpos[output_index] <- res$pos_summ$logpos
+    }
+    
+    if(verbose && iter %% printevery == 0)
+    {
+      cat(iter, ' iterations have been finished!\n' )
+      cat('Online acceptance rate is ',acpi/printevery,'\n')
+      acpi=0
+    }
+  }
+  stop_time <- Sys.time()
+  time <- stop_time-start_time
+  cat('\nTime consumed : ', time, units(time))
+  #acpt <- acpt/(NSAMP-NBURNIN)
+  cat('\nFinal Acceptance Rate: ', sum(acpt) / (NSAMP-NBURNIN),'\n')
+  
+  pos_summ = data.frame(acpt=acpt, logpri = logpri, loglik = loglik, logpos = logpos)
+  
+  result = list(samp=samp, alg=alg, time=time, pos_summ = pos_summ)
+  
+  return(result)
+}
+
 sampling = function(data, para, alg, setting, init, verbose=TRUE, printevery=100)
 {
   # pass the data and parameters
@@ -958,16 +1066,6 @@ ESS_betas_ll = function(f, lik_init, betas, covar_vals = NULL)
            samp_loglik(init = lik_init, fs = fs, betas = betas))
 }
 
-ESS_betas_ll2 = function(f, lik_init, betas, covar_vals = NULL, covar_betas = NULL,
-                         pow_covar_vals = NULL, pow_covar_betas = NULL) 
-{
-  return(coal_loglik(init = lik_init, f = f) +
-           samp_loglik_pow(init = lik_init, logpop = f, betas = betas,
-                           covar_vals = covar_vals, covar_betas = covar_betas,
-                           pow_covar_vals = pow_covar_vals,
-                           pow_covar_betas = pow_covar_betas))
-}
-
 ESS_ext_ll = function(f, lik_init, Ngrid, covar_vals = NULL) 
 {
   nbetas = length(f) - Ngrid + 1
@@ -1015,7 +1113,6 @@ sampling_ESS = function(data, para, setting, init,
   logpri = rep(NA, length(recorded_iters))
   loglik = rep(NA, length(recorded_iters))
   logpos = rep(NA, length(recorded_iters))
-  pos_summ_out = data.frame()
   
   if (samp_alg == "none")
   {
@@ -1042,22 +1139,15 @@ sampling_ESS = function(data, para, setting, init,
     betas_out = matrix(NA, nrow = length(recorded_iters), ncol = length(betas))
   }
   
+  pos_summ = compute_pos_summ(samp_alg = samp_alg, loglikf = ll, f = f,
+                              kappa = kappa, invC = invC, lik_init = lik_init,
+                              alpha = alpha, beta = beta, betas = betas,
+                              betas_prec = diag(1/beta_vars), covar_vals = covar_vals)
+  
   if (kappa_alg == "whiten")
   {
     invtcholC = solve(t(cholC))
   }
-  
-  noprec = FALSE
-  if (kappa_alg == "none")
-  {
-    noprec = TRUE
-  }
-  
-  pos_summ = compute_pos_summ(samp_alg = samp_alg, loglikf = ll, f = f,
-                              kappa = kappa, invC = invC, lik_init = lik_init,
-                              alpha = alpha, beta = beta, betas = betas,
-                              betas_prec = diag(1/beta_vars),
-                              covar_vals = covar_vals, noprec = noprec)
   
   # start MCMC run
   start_time = Sys.time()
@@ -1124,16 +1214,13 @@ sampling_ESS = function(data, para, setting, init,
       kappa <- kappa_res$kappa
       f <- kappa_res$f
     }
-    else if (kappa_alg != "none")
-    {
+    else
       stop("Kappa operator not recognized.")
-    }
     
     pos_summ = compute_pos_summ(samp_alg = samp_alg, loglikf = ll, f = f,
                                 lik_init = lik_init, kappa = kappa, invC = invC,
                                 alpha = alpha, beta = beta, betas = betas,
-                                betas_prec = diag(1/beta_vars),
-                                covar_vals = covar_vals, noprec = noprec)
+                                betas_prec = diag(1/beta_vars), covar_vals = covar_vals)
     #u <- pos_summ$loglik
     
     # save posterior samples after burnin
@@ -1152,7 +1239,6 @@ sampling_ESS = function(data, para, setting, init,
       logpri[output_index] <- pos_summ$logpri
       loglik[output_index] <- pos_summ$loglik
       logpos[output_index] <- pos_summ$logpos
-      pos_summ_out = rbind(pos_summ_out, pos_summ)
     }
     
     if (verbose && iter %% printevery == 0)
@@ -1172,211 +1258,224 @@ sampling_ESS = function(data, para, setting, init,
   
   if (samp_alg %in% c("MH", "ESS"))
   {
-    samp = data.frame(fmat, kappas, betas_out)
+    samp = cbind(fmat, kappas, betas_out)
     colnames(samp) = c(paste("f", 1:(Ngrid-1), sep = ""), "kappa", paste("beta", 0:(length(betas)-1)))
   }
   else
   {
-    samp = data.frame(fmat, kappas)
+    samp = cbind(fmat, kappas)
     colnames(samp) = c(paste("f", 1:(Ngrid-1), sep = ""), "kappa")
   }
   
-  return(list(samp=samp, alg="ESS", time=time, pos_summ = pos_summ, pos_summ_out = pos_summ_out,
+  return(list(samp=samp, alg="ESS", time=time, pos_summ = pos_summ,
               samp_alg = samp_alg, kappa_alg = kappa_alg))
 }
-
-sampling_ESS2 = function(data, para, setting, init,
-                        samp_alg = "none", kappa_alg = "gibbs",
-                        verbose=TRUE, printevery=100)
+#' MCMC Sampling 2 for coalescent times
+#' 
+#' @param dataset \code{phylo} object or list containing vectors of coalescent 
+#'   times \code{coal_times}, sampling times \code{samp_times}, and number 
+#'   sampled per sampling time \code{n_sampled}.
+#' @param alg string selecting which MCMC sampler to use. Options are "HMC", 
+#'   "splitHMC", "MALA", "aMALA", and "ESS".
+#' @param nsamp integer number of MCMC steps to compute.
+#' @param nburnin integer number of MCMC steps to discard as burn-in.
+#' @param nsubsamp integer after burn-in, how often to record a step to the 
+#'   output.
+#' @param ngrid integer number of grid point in the latent field.
+#' @param nugget string selecting which "nugget" adjustment to apply to the 
+#'   precision matrix to make it full-rank. Options are '1,1' for an adjustment 
+#'   to the first element, 'diag' for an adjustment to the entire main diagonal,
+#'   or 'none' which may result in a non-full-rank precision matrix.
+#' @param prec_alpha,prec_beta numeric shape and rate parameters for the prior 
+#'   on precision.
+#' @param TrjL numeric tuning parameter.
+#' @param Nleap integer tuning parameter.
+#' @param szkappa numeric tuning parameter.
+#' @param rand_leap logical tuning parameter.
+#' @param f_init numeric vector starting log effective population size values.
+#' @param kappa numeric starting kappa.
+#' @param covariates list of functions representing covariate trajectories that 
+#'   (may) influence sampling frequency.
+#' @param betas numeric vector of starting values for the beta hyperparameters.
+#' @param samp_alg string selecting sampling algorithm for sampling time 
+#'   intensity coefficients. One of "none" (default), "fixed", "MH", and "ESS".
+#' @param kappa_alg selects sampling algorithm for kappa. One of "gibbs" 
+#'   (default) or "whiten".
+#' @param beta_vars numeric vector prior variances of the beta hyperparameters.
+#' @param printevery integer how many MCMC steps between writing output to the 
+#'   console.
+#'   
+#' @export
+mcmc_sampling_times = function(dataset,sufficient,alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
+                         nugget="1,1", prec_alpha = 1e-2, prec_beta = 1e-2,
+                         TrjL=NULL, Nleap=NULL, szkappa=NULL, rand_leap=NULL,
+                         f_init = rep(1, ngrid-1), kappa = 1,
+                         covariates=NULL, betas=rep(0, 2+length(covariates)),
+                         samp_alg = "none", kappa_alg = "gibbs",
+                         beta_vars = rep(100, length(betas)), printevery=100)
 {
-  # pass the data and parameters
-  lik_init = data$lik_init
-  covar_vals = data$covar_vals
-  pow_covar_vals = data$pow_covar_vals
-  Ngrid = lik_init$ng+1
-  
-  alpha = para$alpha
-  beta = para$beta
-  # invC = para$invC
-  # cholC = para$cholC
-  first_elem_prec = para$first_elem_prec # TODO: make mcmc_sampling do this
-  beta_vars = para$beta_vars
-  
-  proposal_sds = setting$proposal_sds
-  
-  # storage of posterior samples
-  NSAMP = setting$NSAMP
-  NBURNIN = setting$NBURNIN
-  NSUBSAMP = setting$NSUBSAMP
-  recorded_iters = seq.int(from = NBURNIN+1, to = NSAMP, by = NSUBSAMP)
-  
-  # initialization
-  f = init$theta[1:(Ngrid-1)]
-  prec = init$theta[Ngrid]
-  #u = init$u
-  
-  #acpi = 0
-  acpt = rep(1, length(recorded_iters))
-  
-  fmat = matrix(NA, nrow = length(recorded_iters), ncol = length(f))
-  kappas = rep(NA, length(recorded_iters))
-  
-  # storage of log prior, log likelihood, and log posterior
-  logpri = rep(NA, length(recorded_iters))
-  loglik = rep(NA, length(recorded_iters))
-  logpos = rep(NA, length(recorded_iters))
-  pos_summ_out = data.frame()
-  
-  if (samp_alg == "none")
+  if (class(dataset) == "phylo")
   {
-    ll = ESS_none_ll
+    phy <- summarize_phylo(dataset)
   }
-  else if (samp_alg == "fixed")
+  else if (all(c("coal_times", "samp_times", "n_sampled") %in% names(dataset)))
   {
-    betas = para$betas
-    ll = ESS_betas_ll2
-  }
-  else if (samp_alg == "MH")
-  {
-    betas = init$betas
-    ll = ESS_betas_ll2
+    phy <- with(dataset, list(samp_times = samp_times, coal_times = coal_times,
+                              n_sampled = n_sampled))
   }
   
-  if (samp_alg == "MH")
+  samp_times = phy$samp_times
+  n_sampled  = phy$n_sampled
+  coal_times = phy$coal_times
+  
+  # Jump tuning parameters--should probably have an option to change in the arguments
+  if (is.null(TrjL))
+    TrjL = switch(alg, HMC=3, splitHMC=3, MALA=0.1, aMALA=0.1)
+  if (is.null(Nleap))
+    Nleap = switch(alg, HMC=30, splitHMC=15, MALA=1, aMALA=1)
+  if (is.null(szkappa) & alg=="aMALA")
+    szkappa = 1.2
+  
+  if (is.null(rand_leap) & (alg=="HMC" | alg=="splitHMC"))
+    rand_leap = TRUE
+  
+  stepsz = TrjL/Nleap
+  
+  grid_bds = range(c(coal_times,samp_times))
+  #Ngrid = 100
+  
+  grid = seq(grid_bds[1],grid_bds[2],length.out=ngrid)
+  intl = grid[2]-grid[1]
+  midpts = grid[-1]-intl/2
+  
+  covar_vals = NULL
+  if (!is.null(covariates))
   {
-    betas_out = matrix(NA, nrow = length(recorded_iters), ncol = length(betas))
+    for (fcn in covariates)
+    {
+      covar_vals = cbind(covar_vals, log(fcn(midpts)), deparse.level = 0)
+    }
   }
   
-  noprec = FALSE
-  if (kappa_alg == "none")
+  # initialize likelihood calculation
+  lik_init = coal_lik_init(samp_times=samp_times, n_sampled=n_sampled, coal_times=coal_times, grid=grid)
+  
+  # calculate intrinsic precision matrix
+  invC <- Q_matrix(midpts,0,1)
+  
+  # fudge to be able to compute the cholC
+  if (nugget == "1,1")
+    invC[1,1] <- invC[1,1]+.0001 # nugget at (1,1)
+  else if (nugget == "diag")
+    #Julia: I had a warning when using this--needs to be corrected
+    diag(invC)<-diag(invC)+.0001 # nugget for the whole diagonal
+  else if (nugget == "none")
+    warning("No nugget may result in a non-full-rank matrix.")
+  else
+    stop(paste("Unrecognized argument nugget = '", nugget, "', please use '1,1', 'diag', or 'none'.", sep = ""))
+  
+  eig  = spam::eigen.spam(invC, TRUE)
+  rtEV = sqrt(eig$values)
+  EVC  = eig$vectors
+  
+  C = spam::solve.spam(invC)
+  cholC = chol(C)
+  
+  # initializations
+  #theta = rep(1,Ngrid)
+  theta = c(f_init, kappa)
+  
+  if (alg == "HMC")
   {
-    noprec = TRUE
+    u  = U(theta,lik_init,invC,prec_alpha,prec_beta)$logpos
+    du = U(theta,lik_init,invC,prec_alpha,prec_beta, TRUE)$dlogpos
   }
-  
-  pos_summ = compute_pos_summ2(samp_alg = samp_alg, loglikf = ll, f = f, 
-                               prec = prec, first_elem_prec = first_elem_prec,
-                               lik_init = lik_init, alpha = alpha, beta = beta,
-                               betas = betas, covar_vals = covar_vals,
-                               covar_betas = covar_betas,
-                               pow_covar_vals = pow_covar_vals,
-                               pow_covar_betas = pow_covar_betas,
-                               betas_prec = 1/beta_vars, noprec = noprec)
-  init_pos = list(f = f, prec = prec, first_elem_prec = first_elem_prec, pos_summ = pos_summ)
-  
-  # start MCMC run
-  start_time = Sys.time()
-  cat('Running ESS', samp_alg ,' sampling...\n')
-  for(iter in 1:NSAMP)
+  else if (alg == "splitHMC")
   {
-    if (samp_alg == "none")
-    {
-      res = ESS2(q_cur = f, l_cur = pos_summ$loglik, loglik = ll, prec = prec,
-                 first_elem_prec = first_elem_prec, lik_init = lik_init)
-      f = res$q
-    }
-    else if (samp_alg == "fixed")
-    {
-      res = ESS2(q_cur = f, l_cur = pos_summ$loglik, loglik = ll, prec = prec,
-                 first_elem_prec = first_elem_prec, lik_init = lik_init,
-                 betas = betas, covar_vals = covar_vals,
-                 covar_betas = covar_betas,
-                 pow_covar_vals = pow_covar_vals,
-                 pow_covar_betas = pow_covar_betas)
-      f = res$q
-    }
-    else if (samp_alg == "MH")
-    {
-      MH_res = MH_betas_rscan2(curr_betas = betas, curr_pos_summ = pos_summ,
-                              loglikf = ll, lik_init = lik_init, f = f, prec = prec,
-                              first_elem_prec = first_elem_prec, alpha = alpha, beta = beta,
-                              betas_prec = 1/beta_vars, covar_vals = covar_vals,
-                              covar_betas = covar_betas,
-                              pow_covar_vals = pow_covar_vals,
-                              pow_covar_betas = pow_covar_betas,
-                              proposal_sds = proposal_sds)
-      betas = MH_res$betas
-      pos_summ = MH_res$pos_summ
-      
-      res = ESS2(q_cur = f, l_cur = pos_summ$loglik, loglik = ll, prec = prec,
-                 first_elem_prec = first_elem_prec, lik_init = lik_init,
-                 betas = betas, covar_vals = covar_vals)
-      f = res$q
-    }
-    else
-    {
-      stop('The ESS subalgorithm is not in the list!')
-    }
-    
-    #acpi <- acpi+res$Ind
-    
-    if (kappa_alg == "gibbs")
-    {
-      prec <- stats::rgamma(1, alpha + (Ngrid-1)/2, beta + sum(diff(f)^2)/2)
-    }
-    else if (kappa_alg != "none")
-    {
-      stop("Kappa operator not recognized.")
-    }
-    
-    pos_summ = compute_pos_summ2(samp_alg = samp_alg, loglikf = ll, f = f, 
-                                 prec = prec, first_elem_prec = first_elem_prec,
-                                 lik_init = lik_init, alpha = alpha, beta = beta,
-                                 betas = betas, covar_vals = covar_vals,
-                                 covar_betas = covar_betas,
-                                 pow_covar_vals = pow_covar_vals,
-                                 pow_covar_betas = pow_covar_betas,
-                                 betas_prec = 1/beta_vars, noprec = noprec)
-    #u <- pos_summ$loglik
-    
-    # save posterior samples after burnin
-    output_index = match(x = iter, table = recorded_iters)
-    if (!is.na(output_index))
-    {
-      fmat[output_index, ] <- f
-      kappas[output_index] <- prec
-      
-      if (samp_alg == "MH")
-      {
-        betas_out[output_index, ] <- betas
-      }
-      #acpt[output_index] <- res$Ind
-      
-      # logpri[output_index] <- pos_summ$logpri
-      # loglik[output_index] <- pos_summ$loglik
-      # logpos[output_index] <- pos_summ$logpos
-      pos_summ_out = rbind(pos_summ_out, pos_summ)
-    }
-    
-    if (verbose && iter %% printevery == 0)
-    {
-      cat(iter, ' iterations have been finished!\n' )
-      cat('Online acceptance rate is ', 1,'\n')
-      #acpi=0
-    }
+    u  = U_split(theta,lik_init,invC,prec_alpha,prec_beta)$logpos
+    du = U_split(theta,lik_init,invC,prec_alpha,prec_beta, TRUE)
   }
-  stop_time <- Sys.time()
-  time <- stop_time-start_time
-  cat('\nTime consumed : ', time, units(time))
-  #acpt <- acpt/(NSAMP-NBURNIN)
-  cat('\nFinal Acceptance Rate: ', sum(acpt) / length(recorded_iters),'\n')
-  
-  # pos_summ = data.frame(acpt=acpt, logpri = logpri, loglik = loglik, logpos = logpos)
-  
-  if (samp_alg == "MH")
+  else if (alg == "MALA")
   {
-    samp = data.frame(fmat, kappas, betas_out)
-    colnames(samp) = c(paste("f", 1:(Ngrid-1), sep = ""), "prec", paste("beta", 0:(length(betas)-1)))
+    u  = U(theta,lik_init,invC,prec_alpha,prec_beta)$logpos
+    du = U(theta,lik_init,invC,prec_alpha,prec_beta, TRUE)$dlogpos
+  }
+  else if (alg == "aMALA")
+  {
+    u  = U_kappa(theta,lik_init,invC,prec_alpha,prec_beta)$logpos
+    du = NULL
+  }
+  else if (alg == "ESS")
+  {
+    u = NULL
+    #u  = coal_loglik(init = lik_init, f = theta[-Ngrid])
+    du = NULL
   }
   else
   {
-    samp = data.frame(fmat, kappas)
-    colnames(samp) = c(paste("f", 1:(Ngrid-1), sep = ""), "prec")
+    stop('The algorithm is not in the list!')
   }
   
-  return(list(samp=samp, alg="ESS2", time=time, pos_summ = pos_summ_out,
-              samp_alg = samp_alg, kappa_alg = kappa_alg, init_pos = init_pos))
+  # MCMC sampling preparation
+  dataset = list(lik_init = lik_init, covar_vals = covar_vals)
+  para = list(alpha = prec_alpha, beta = prec_beta, invC = invC, rtEV = rtEV,
+              EVC = EVC, cholC = cholC, betas = betas, beta_vars = beta_vars)
+  setting = list(stepsz = stepsz, Nleap = Nleap,
+                 NSAMP = nsamp, NBURNIN = nburnin, NSUBSAMP = nsubsamp,
+                 szkappa = szkappa, rand_leap=rand_leap,
+                 proposal_sds = rep(0.3, length(betas)))
+  init = list(theta = theta, u = u, du = du, betas = betas)
+  
+  # Run MCMC sampler
+  if (alg == "ESS")
+  {
+    res_MCMC = sampling_ESS(data = dataset, para = para, setting = setting,
+                            init = init, samp_alg = samp_alg, kappa_alg = kappa_alg,
+                            printevery = printevery)
+  }
+  else
+  {
+    res_MCMC = sampling(data = dataset, para = para, alg = alg, setting = setting,
+                        init = init, printevery = printevery)
+  }
+  
+  res_MCMC$alg = alg
+  res_MCMC$samp_alg = samp_alg
+  res_MCMC$kappa_alg = kappa_alg
+  res_MCMC$Ngrid = ngrid
+  
+  #cleaned_res = burnin_subsample(res = res_MCMC, burnin = 0)
+  
+  logfmat = res_MCMC$samp[,1:(ngrid-1)]
+  if (alg == "ESS" && samp_alg %in% c("MH", "ESS"))
+  {
+    params = res_MCMC$samp[,ngrid:(ngrid+2)]
+  }
+  else
+  {
+    params = matrix(res_MCMC$samp[,ngrid])
+  }
+  estimates = calculate_estimates(logfmat = logfmat, params = params, grid = grid)
+  
+  #res_MCMC$cleaned_res = cleaned_res
+  res_MCMC$estimates = estimates
+  
+  res_MCMC$med = estimates$fmed
+  res_MCMC$low = estimates$flow
+  res_MCMC$hi = estimates$fhi
+  
+  res_MCMC$med_fun = estimates$fmed_fun
+  res_MCMC$low_fun = estimates$flow_fun
+  res_MCMC$hi_fun = estimates$fhi_fun
+  
+  res_MCMC$grid = grid
+  res_MCMC$x = midpts
+  res_MCMC$samp_times = samp_times
+  res_MCMC$n_sampled = n_sampled
+  res_MCMC$coal_times = coal_times
+  
+  return(res_MCMC)
 }
-
 
 #' MCMC Sampling
 #' 
@@ -1418,11 +1517,9 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
                          nugget="1,1", prec_alpha = 1e-2, prec_beta = 1e-2,
                          TrjL=NULL, Nleap=NULL, szkappa=NULL, rand_leap=NULL,
                          f_init = rep(1, ngrid-1), kappa = 1,
-                         covariates=NULL, power_covariates=NULL,
-                         betas=rep(0, 2+length(covariates)+length(power_covariates)),
+                         covariates=NULL, betas=rep(0, 2+length(covariates)),
                          samp_alg = "none", kappa_alg = "gibbs",
-                         beta_vars = rep(100, length(betas)), printevery=100,
-                         first_elem_prec = 0.01)
+                         beta_vars = rep(100, length(betas)), printevery=100)
 {
   if (class(dataset) == "phylo")
   {
@@ -1459,19 +1556,11 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   midpts = grid[-1]-intl/2
   
   covar_vals = NULL
-  pow_covar_vals = NULL
   if (!is.null(covariates))
   {
     for (fcn in covariates)
     {
       covar_vals = cbind(covar_vals, log(fcn(midpts)), deparse.level = 0)
-    }
-  }
-  if (!is.null(power_covariates))
-  {
-    for (fcn in power_covariates)
-    {
-      pow_covar_vals = cbind(pow_covar_vals, log(fcn(midpts)), deparse.level = 0)
     }
   }
   
@@ -1523,7 +1612,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
     u  = U_kappa(theta,lik_init,invC,prec_alpha,prec_beta)$logpos
     du = NULL
   }
-  else if (alg == "ESS" || alg == "ESS2")
+  else if (alg == "ESS")
   {
     u = NULL
     #u  = coal_loglik(init = lik_init, f = theta[-Ngrid])
@@ -1535,10 +1624,9 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   }
   
   # MCMC sampling preparation
-  dataset = list(lik_init = lik_init, covar_vals = covar_vals, pow_covar_vals = pow_covar_vals)
+  dataset = list(lik_init = lik_init, covar_vals = covar_vals)
   para = list(alpha = prec_alpha, beta = prec_beta, invC = invC, rtEV = rtEV,
-              EVC = EVC, cholC = cholC, betas = betas, beta_vars = beta_vars,
-              first_elem_prec = first_elem_prec)
+              EVC = EVC, cholC = cholC, betas = betas, beta_vars = beta_vars)
   setting = list(stepsz = stepsz, Nleap = Nleap,
                  NSAMP = nsamp, NBURNIN = nburnin, NSUBSAMP = nsubsamp,
                  szkappa = szkappa, rand_leap=rand_leap,
@@ -1551,12 +1639,6 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
     res_MCMC = sampling_ESS(data = dataset, para = para, setting = setting,
                             init = init, samp_alg = samp_alg, kappa_alg = kappa_alg,
                             printevery = printevery)
-  }
-  else if (alg == "ESS2")
-  {
-    res_MCMC = sampling_ESS2(data = dataset, para = para, setting = setting,
-                             init = init, samp_alg = samp_alg, kappa_alg = kappa_alg,
-                             printevery = printevery)
   }
   else
   {
@@ -1572,7 +1654,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   #cleaned_res = burnin_subsample(res = res_MCMC, burnin = 0)
   
   logfmat = res_MCMC$samp[,1:(ngrid-1)]
-  if (alg %in% c("ESS", "ESS2") && samp_alg %in% c("MH", "ESS"))
+  if (alg == "ESS" && samp_alg %in% c("MH", "ESS"))
   {
     params = res_MCMC$samp[,ngrid:(ngrid+2)]
   }
@@ -1670,161 +1752,34 @@ smcp_sampling = function(data,  nsamp, nburnin, grid, alpha = 1e-3, beta = 1e-3,
   return(results)
 }
 
-
-##Sampler for Tajima coalescent
-
-HMC_times = function (q_cur, nsites, tus, U, theta,result, grid, eps=.2, L=5, rand_leap=TRUE)
-{  
-  # initialization
-  q = log(q_cur)
-  D = length(q)
-  u = tus$logpos
-  du = tus$dlogpos *exp(q) #I changed this because of numerical stability. Sampling log(times) avoids having negative times (Sep 2018)
-  #print("part 0")
-  # sample momentum
-  p = stats::rnorm(D)
-  #print("part 0.1")
-  # calculate current energy
-  E_cur = u + sum(p^2)/2
-  
-  # Make a half step for momentum at the beginning
-  p = p - eps/2 * du
-  
-  #print("part 1")
-  if (rand_leap)
-    randL = ceiling(stats::runif(1)*L)
-  else
-    randL = ceiling(L)
-  
-  
-  #print("part 2")
-  # Alternate full steps for position and momentum
-  for (l in 1:randL)
-  {
-    # Make a full step for the position
-    #print(paste("l is",l,sep=""))
-    q = q + eps * p
-    
-    # q[q<0]<-.0000001
-    #print(paste("length",length(grid),sep=""))
-    #print(q)
-    pos_summ =U(exp(q),nsites, result, grid, theta,0,TRUE)
-    du = pos_summ$dlogpos * exp(q)
-    # Make a full step for the momentum, except at end of trajectory
-    if (l!=randL)
-      p = p - eps * du
-  }
-  
-  # Make a half step for momentum at the end.
-  p = p - eps/2 * du
-  
-  # Evaluate potential and kinetic energies at start and end of trajectory
-  #pos_summ = U(q,grid,theta,F)
-  u = pos_summ$logpos
-  E_prp = u + sum(p^2)/2
-  
-  # Accept or reject the state at end of trajectory, returning either
-  # the position at the end of the trajectory or the initial position
-  #rjmcmc accounts for the change of dimension in theta
-  
-  logAP = -E_prp + E_cur 
-  #+ pos_summ$rjmcmc
-  
-  if(is.finite(logAP) && (log(stats::runif(1))<min(0,logAP)))
-    return (list(q = exp(q), Ind = 1, grid=pos_summ$grid, pos_summ = pos_summ))
-  else
-    return (list(q = q_cur, Ind = 0, grid=grid, pos_summ = tus))
-}
-
-splitHMC2 = function (q_cur, u_cur, du_cur, U, lik_init,invC, rtEV, EVC, eps=.1, L=5, rand_leap=TRUE)
-{
-  # initialization
-  q = q_cur
-  D = length(q)
-  u = u_cur
-  du = du_cur
-  
-  # sample momentum
-  p = stats::rnorm(D)
-  
-  # calculate current energy
-  E_cur = u + sum(p^2)/2
-  
-  
-  if (rand_leap)
-    randL = ceiling(stats::runif(1)*L)
-  else
-    randL = ceiling(L)
-  
-  p = p - eps/2*du
-  qT = rtEV*(t(EVC)%*%q[-D])
-  pT = t(EVC)%*%p[-D]
-  A = t(qT)%*%qT
-  # Alternate full steps for position and momentum
-  for (l in 1:randL)
-  {
-    p[D] <- p[D] - eps/2*A/2*exp(q[D])
-    q[D] <- q[D] + eps/2*p[D]
-    
-    # Make a full step for the middle dynamics
-    Cpx = complex(modulus = 1, argument = -rtEV*exp(q[D]/2)*eps)*complex(real = qT*exp(q[D]/2), imaginary = pT)
-    qT = Re(Cpx)*exp(-q[D]/2)
-    pT = Im(Cpx)
-    q[-D] = EVC%*%(qT/rtEV)
-    
-    # Make a half step for the last half dynamics
-    A=t(qT)%*%qT
-    
-    q[D] <- q[D] + eps/2*p[D]
-    p[D] <- p[D] - eps/2*A/2*exp(q[D])
-    
-    du = U(q,lik_init,invC, grad = TRUE)
-    if(l!=randL)
-    {
-      pT = pT - eps*(t(EVC)%*%du[-D])
-      p[D] = p[D] - eps*du[D]
-    }
-  }
-  p[-D] = EVC%*%pT - eps/2*du[-D]
-  p[D] = p[D] - eps/2*du[D]
-  
-  # Evaluate potential and kinetic energies at start and end of trajectory
-  pos_summ = U(q,lik_init,invC)
-  u = pos_summ$logpos
-  E_prp = u + sum(p^2)/2
-  
-  # Accept or reject the state at end of trajectory, returning either
-  # the position at the end of the trajectory or the initial position
-  logAP = -E_prp + E_cur
-  
-  if( is.finite(logAP) && (log(stats::runif(1))<min(0,logAP)) )
-    return (list(q = q, u = u, du = du, Ind = 1, pos_summ = pos_summ))
-  else
-    return (list(q = q_cur, u = u_cur, du = du_cur, Ind = 0, pos_summ = U(q_cur,lik_init,invC)))
-}
 #' BESTT initialization 
 #' 
 #' @param data A vector of mutations
 #' @param name The name of the fasta file to be stored in your working directory
 #' @param mu Mutation rate
 #' @param npoints Number of breakpoints of a regular grid to initialize Ne
+#' @param fact scaling factor
 #' 
 #' @return A list with initial values. theta is log Ne
 #' @export
-initial_tajima<-function(data,name="temp",mu,npoints=49){
-  oldsuff<-sufficient_stats(data)
-  beastfile(data,name)  
+
+initial_tajima<-function(data1,name="newSim10Bottle",mu,npoints=49,fact=1){
+  oldsuff<-sufficient_stats(data1)
+  beastfile(data1,name)  
   fastaformat<-read.FASTA(name)
   fastafile<-as.phyDat(fastaformat)
   dm <- dist.ml(fastafile)
   treeUPGMA <- upgma(dm)
+  #plot(treeUPGMA)
   coalescent.intervals(treeUPGMA)$total.depth
   n<-coalescent.intervals(treeUPGMA)$lineages[1]
   treeUPGMA$edge.length<-treeUPGMA$edge.length*nrow(data1)/(mu*sum(coalescent.intervals(treeUPGMA)$interval.length*seq(n,2)))
   res2b<-BNPR(data=treeUPGMA,lengthout=npoints)
+  #res2b<-0
   times<-coalescent.intervals(treeUPGMA)$interval.length
   times[times==0]<-min(min(times[times>0])/2,.0000001)
-  return(list(res2b=res2b,oldsuff=oldsuff,times=times,theta=c(log(res2b$effpopmean),1)))
+  #return(list(res2b=res2b,oldsuff=oldsuff,times=times*fact,theta=rep(1,npoints+1)))
+  return(list(res2b=res2b,oldsuff=oldsuff,times=times*fact,theta=c(log(res2b$effpopmean*fact),1)))
 }
 
 initial_MCMC_L<-function(initial,ngrid=50,mu=40,n=10,fact=10){
@@ -1842,7 +1797,7 @@ initial_MCMC_L<-function(initial,ngrid=50,mu=40,n=10,fact=10){
     resultL[[j]] <- python.call("F_sample", initial$oldsuffL[[j]])
     resultL[[j]]$F<-matrix(unlist(resultL[[j]]$F_mat),nrow=length(resultL[[j]]$F_mat[[1]]),byrow=TRUE)
     lik_call[[j]]<-python.call("calcPF", resultL[[j]]$change_F, resultL[[j]]$F_nodes, resultL[[j]]$family_size, initial$oldsuffL[[j]],initial$timesL[[j]]*nsites,"True")
-    for (i in 2:100){
+    for (i in 2:1000){
       temp1 <- python.call("F_sample", initial$oldsuffL[[j]])
       temp1$F<-matrix(unlist(temp1$F_mat),nrow=length(temp1$F_mat[[1]]),byrow=TRUE)
       lik1<-python.call("calcPF", temp1$change_F, temp1$F_nodes, temp1$family_size, initial$oldsuffL[[j]],initial$timesL[[j]]*nsites,"True")
@@ -1857,13 +1812,14 @@ initial_MCMC_L<-function(initial,ngrid=50,mu=40,n=10,fact=10){
     proposal_FL[[j]]<-lik_call[[j]][1][[1]]
     F_listL[[j]]<-list(resultL[[j]]$F)
     probs_listL[[j]]<-c(lik_call[[j]][[2]],prior_FL[[j]],0,0)
-  }
+     }
   grid_bds = range(tmrca, 0); grid = seq(grid_bds[1], grid_bds[2], length.out = ngrid); intl = grid[2]-grid[1]; midpts = grid[-1]-intl/2
   theta_list<-initial$theta[-length(initial$theta)]
   
   for (j in 1:length(initial$oldsuffL)){
     lik_initL[[j]] = coal_lik_init(samp_times = 0, n_sampled = n,coal_times = cumsum(initial$timesL[[j]]), grid = grid)
   }
+  #theta_list<-cbind(theta_list,theta_list)
   prec_list<-1 ##this is to record tau
   invC <- Q_matrix(as.matrix(midpts), 0, 1); library("spam");
   invC[1,1]<-invC[1,1]+.0001
@@ -1871,32 +1827,52 @@ initial_MCMC_L<-function(initial,ngrid=50,mu=40,n=10,fact=10){
   rtEV = sqrt(eig$values)
   EVC  = eig$vectors
   Ufun1 = function(theta, lik_init, invC, grad=FALSE) U_splitL(theta = theta, init = lik_init, invC = invC,
-                                                               alpha = .01, beta = .01, grad = grad)
+                                                              alpha = .01, beta = .01, grad = grad)
   
   temp<-U_splitL(initial$theta,lik_initL,invC,.01,.01)
   gaussprior<--temp$logpri
   us1L = temp$logpos
   dus1L= U_splitL(initial$theta,lik_initL,invC,.01,.01, TRUE)
   const<-1
+  #Ufun2L= function(times,nsites,result,grid,theta,logliktot,indicator) U_times2L(times = times, nsites=nsites,result = result, oldsuff=initial$oldsuffL, theta=theta, grid=grid,logliktot=logliktot,indicator=indicator,const=const,sig=.1)
+  
+  #tus2L<-Ufun2L(initial$timesL,nsites,resultL,grid,initial$theta,lik_call,FALSE)
   Ufun2L<-list()
   us2L<-list()
   tus2L<-list()
   dus2L<-list()
   coalpriorL<-list()
   
-  
+
   for (j in 1:length(initial$oldsuffL)){
+    #Ufun2L[[j]] = function(times,nsites,result,grid,theta,logliktot,indicator) U_times2(times = times, nsites=nsites,result = result, oldsuff=initial$oldsuffL[[j]], theta=theta, grid=grid,logliktot=logliktot,indicator=indicator,const=const,sig=.1)
     tus2L[[j]]=U_times2(initial$timesL[[j]],nsites,resultL[[j]],initial$oldsuffL[[j]],initial$theta,grid,lik_call[[j]],FALSE,const=const,sig=.1)
+    #tus2L[[j]]=Ufun2L[[j]](initial$timesL[[j]],nsites,resultL[[j]],grid,initial$theta,lik_call[[j]],FALSE)
     us2L[[j]]=tus2L[[j]]$logpos
     dus2L[[j]]=tus2L[[j]]$dlogpos
     coalpriorL[[j]]<--tus2L[[j]]$logpri
     probs_listL[[j]][3:4]<-c(coalpriorL[[j]],gaussprior)
   }
-  
+
   
   currentval<-list(coalprior=coalpriorL,gaussprior=gaussprior,proposal_FL=proposal_FL,grid=grid,resultL=resultL,tus2L=tus2L,timesL=initial$timesL,theta=initial$theta,us1L=us1L,us2L=us2L,dus2L=dus2L,dus1L=dus1L,Ufun1=Ufun1,oldsuffL=initial$oldsuffL,lik_initL=lik_initL,invC=invC,rtEV=rtEV,EVC=EVC,lik_call=lik_call,prior_FL=prior_FL)
   return(list(currentval=currentval,F_listL=F_listL,probs_listL=probs_listL,times_listL=times_listL,theta_list=theta_list,prec_list=prec_list))
 }
+
+
+
+#' BESTT MCMC initialization 
+#' 
+#' @param initial output of initial_tajima
+#' @param ngrid #grid points
+#' @param mu Mutation rate
+#' @param n sample size
+#' @param alpha hyperparameter
+#' @param fact scaling factor
+#' @param Nate #initialization iterations
+#' 
+#' @return A list with initial values.
+#' @export
 
 initial_MCMC<-function(initial,ngrid=50,mu=40,n=10,alpha=.1,fact=10,Nate=2000){
   oldsuff<-initial$oldsuff
@@ -1926,6 +1902,7 @@ initial_MCMC<-function(initial,ngrid=50,mu=40,n=10,alpha=.1,fact=10,Nate=2000){
   probs_list<-c(currentlik,prior_F,0,0)
   times_list<-times
   theta_list<-initial$theta[-length(initial$theta)]
+  #theta_list<-cbind(theta_list,theta_list)
   prec_list<-1 ##this is to record tau
   lik_init = coal_lik_init(samp_times = 0, n_sampled = n,coal_times = cumsum(times), grid = grid)
   invC <- Q_matrix(as.matrix(midpts), 0, 1); library("spam"); 
@@ -1953,6 +1930,8 @@ updateThetaL<-function(currentval,theta_list,prec_list,probs_listL,const=1,j=1,n
     m<-length(res1$q)
     tl<-nrow(as.matrix(theta_list))
     addna<-tl-m+1
+    #print("addna is")
+    #print(addna)
     if (addna>=0){theta2<-c(res1$q[-m],rep(NA,addna));theta_list<-cbind(theta_list,theta2)}
     if (addna<0){theta2<-res1$q[-m]; theta_list<-rbind(as.matrix(theta_list),matrix(NA,nrow=abs(addna),ncol=ncol(as.matrix(theta_list))));theta_list<-cbind(theta_list,theta2)}
     prec_list<-c(prec_list,res1$q[m]) ##precision tau
@@ -1963,13 +1942,16 @@ updateThetaL<-function(currentval,theta_list,prec_list,probs_listL,const=1,j=1,n
     for (i in 1:length(currentval$tus2L)){
       #j<-i
       tus2L[[i]]=U_times2(currentval$timesL[[i]],nsites,currentval$resultL[[i]],currentval$oldsuffL[[i]],currentval$theta,currentval$grid,currentval$tus2L[[i]]$logliktot,as.logical(ind),const=const,sig=.1)
+      #tus2L[[i]]=currentval$Ufun2L[[i]](currentval$timesL[[i]],nsites,currentval$resultL[[i]],currentval$grid,currentval$theta,currentval$tus2L[[i]]$logliktot,)
       currentval$us2L[[i]]=tus2L[[i]]$logpos
       currentval$dus2L[[i]]=tus2L[[i]]$dlogpos
       coalpriorL[[i]]<--tus2L[[i]]$logpri
       currentval$lik_call[[i]]<-tus2L[[i]]$logliktot ##I don't think I need to update this
+      #totlik<-totlik+tus2L[[i]]$logliktot[[2]]/const
       probs_listL[[i]]<-rbind(probs_listL[[i]],c(tus2L[[i]]$logliktot[[2]]/const,currentval$prior_FL[[i]],coalpriorL[[i]],-res1$pos_summ$logpri))
-    }
+      }
     currentval$tus2L=tus2L
+    #probs_list<-rbind(probs_list,c(totlik,currentval$prior_F,-res1$pos_summ$loglik,-res1$pos_summ$logpri))
   }else{
     m<-length(currentval$theta)
     tl<-nrow(as.matrix(theta_list))
@@ -1978,14 +1960,33 @@ updateThetaL<-function(currentval,theta_list,prec_list,probs_listL,const=1,j=1,n
     print(addna)
     if (addna>=0){theta2<-c(res1$q[-m],rep(NA,addna));theta_list<-cbind(theta_list,theta2)}
     if (addna<0){theta2<-res1$q[-m]; theta_list<-rbind(as.matrix(theta_list),matrix(NA,nrow=abs(addna),ncol=ncol(as.matrix(theta_list))));theta_list<-cbind(theta_list,theta2)}
+    
+    #theta2<-c(currentval$theta[-m],rep(NA,addna))
+    #theta_list<-cbind(theta_list,theta2);
     prec_list<-c(prec_list,currentval$theta[m])
     #TODO update every element of the list to repeat the last row
     #probs_list<-rbind(probs_list,c(currentval$tus2$logliktot[[2]]/const,currentval$prior_F,-res1$pos_summ$loglik,-res1$pos_summ$logpri))
   }
+  #currentval$coalprior<--res1$pos_summ$loglik
   currentval$coalprior<-coalpriorL
   currentval$gaussprior<--res1$pos_summ$logpri
   return(list(currentval=currentval,probs_listL=probs_listL,prec_list=prec_list,theta_list=theta_list, acp=res1$Ind))
 }
+
+
+#' HMC for theta 
+#' 
+#' @param currenval current state of the chain
+#' @param theta_list all value of log Ne(t) (record all iterations)
+#' @param prec_list  vector recording precision parameter
+#' @param probs_list matrix with likelihod posterior prior at each iteration
+#' @param const scaling factor
+#' @param j decide whether to use gradient or likehood
+#' @param nsites mutation rate
+#' @param eps leapfrof parameter
+#' 
+#' @return A list with initial values. theta is log Ne
+#' @export
 
 updateTheta<-function(currentval,theta_list,prec_list,probs_list,const=1,j=1,nsites=nsites,eps=.3){  
   res1 = splitHMC2(currentval$theta, currentval$us1, currentval$dus1, currentval$Ufun1, currentval$lik_init, currentval$invC, currentval$rtEV, currentval$EVC, eps=eps, L=5, rand_leap=TRUE)
@@ -1997,6 +1998,7 @@ updateTheta<-function(currentval,theta_list,prec_list,probs_list,const=1,j=1,nsi
     if (addna>=0){theta2<-c(res1$q[-m],rep(NA,addna));theta_list<-cbind(as.matrix(theta_list),theta2)}
     if (addna<0){theta2<-res1$q[-m]; theta_list<-rbind(as.matrix(theta_list),matrix(NA,nrow=abs(addna),ncol=ncol(as.matrix(theta_list))));theta_list<-cbind(theta_list,theta2)}
     
+    #theta2<-c(res1$q[-m],rep(NA,addna))
     prec_list<-c(prec_list,res1$q[m]) ##precision tau
     currentval$us1<-res1$u;currentval$dus1=res1$du;currentval$theta=res1$q;acp1<-acp1+1;
     #theta_list<-cbind(theta_list,theta2);
@@ -2016,6 +2018,8 @@ updateTheta<-function(currentval,theta_list,prec_list,probs_list,const=1,j=1,nsi
     if (addna>=0){theta2<-c(res1$q[-m],rep(NA,addna));theta_list<-cbind(theta_list,theta2)}
     if (addna<0){theta2<-res1$q[-m]; theta_list<-rbind(theta_list,matrix(NA,nrow=abs(addna),ncol=ncol(theta_list)));theta_list<-cbind(theta_list,theta2)}
     
+    #theta2<-c(currentval$theta[-m],rep(NA,addna))
+    #theta_list<-cbind(theta_list,theta2);
     prec_list<-c(prec_list,currentval$theta[m])
     probs_list<-rbind(probs_list,c(currentval$tus2$logliktot[[2]]/const,currentval$prior_F,-res1$pos_summ$loglik,-res1$pos_summ$logpri))
   }
@@ -2024,16 +2028,33 @@ updateTheta<-function(currentval,theta_list,prec_list,probs_list,const=1,j=1,nsi
   return(list(currentval=currentval,probs_list=probs_list,prec_list=prec_list,theta_list=theta_list, acp=res1$Ind))
 }
 
+#' HMC for times
+#' 
+#' @param currenval current state of the chain
+#' @param times_list  of coalescent times
+#' @param theta_list value of log Ne(t)
+#' @param prec_list  vector recording precision parameter
+#' @param probs_list matrix with likelihod posterior prior at each iteration
+#' @param const scaling factor
+#' @param nsites mutation rate
+#' @param eps leapfrof parameter
+#' 
+#' @return A list with initial values.
+#' @export
+
 updateTimes<-function(currentval,times_list,theta_list,prec_list,probs_list,const=1,nsites=nsites,eps=0.04){  
+  #U_times2(currentval$timesL[[i]],nsites,currentval$resultL[[i]],currentval$oldsuffL[[i]],initial$theta,currentval$grid,currentval$tus2L[[i]]$logliktot,as.logical(ind),const=const,sig=.1)
   res2=HMC_times(q_cur=currentval$times,nsites=nsites,tus=currentval$tus2,U=currentval$Ufun2,theta=currentval$theta,result=currentval$result,grid=currentval$grid,eps=eps,L=8,rand_leap=TRUE)
   res2$Ind
-  print(res2$Ind)
-  print(sum(res2$q))
+  #print(res2$Ind)
+  #print(sum(res2$q))
   if (res2$Ind==1){
     currentval$tus2=res2$pos_summ
     currentval$us2=currentval$tus2$logpos;currentval$dus2=currentval$tus2$dlogpos;currentval$times=res2$q;times_list<-cbind(times_list,res2$q);
+    #print(sum(currentval$times))
     currentval$theta<-res2$pos_summ$newtheta
     if (max(currentval$grid)<sum(currentval$times)) {
+      #break
       currentval$grid<-res2$pos_summ$grid
       newl<-length(currentval$grid)-1
       oldl<-nrow(as.matrix(theta_list))
@@ -2055,6 +2076,7 @@ updateTimes<-function(currentval,times_list,theta_list,prec_list,probs_list,cons
     }
     
     if (max(currentval$grid)>sum(currentval$times)) {
+      #break; #I need to shrink the grid, reduce theta and update calculations
       currentval$grid<-currentval$grid[1:(max(seq(1,length(currentval$grid))[currentval$grid<sum(currentval$times)])+1)]
       intl = currentval$grid[2]-currentval$grid[1]; midpts = currentval$grid[-1]-intl/2
       currentval$invC <- Q_matrix(as.matrix(midpts), 0, 1);
@@ -2063,7 +2085,7 @@ updateTimes<-function(currentval,times_list,theta_list,prec_list,probs_list,cons
       where<-ncol(as.matrix(theta_list))
       where2<-nrow(as.matrix(theta_list))
       if (where==1){
-        if (where2>length(currentval$grid)){theta_list[(length(currentval$grid)):where2]<-NA}
+      if (where2>length(currentval$grid)){theta_list[(length(currentval$grid)):where2]<-NA}
       }else{
         if (where2>length(currentval$grid)){theta_list[(length(currentval$grid)):where2,where]<-NA}  
       }
@@ -2089,29 +2111,198 @@ updateTimes<-function(currentval,times_list,theta_list,prec_list,probs_list,cons
 
 updateTimesL<-function(currentval,times_list,probs_list,const=1,nsites=nsites,eps=0.04){
   U<-function(times,nsites,result,grid,theta,logliktot,indicator) U_times2(times = times, nsites=nsites,result = result, oldsuff=currentval$oldsuff, theta=theta, grid=grid,logliktot=logliktot,indicator=indicator,const=const,sig=.1)
+  #res2<-list()
+  #for (j in 1:length(probs_listL)){
+  #U<-function(times,nsites,result,grid,theta,logliktot,indicator) U_times2(times = times, nsites=nsites,result = result, oldsuff=currentval$oldsuffL[[j]], theta=theta, grid=grid,logliktot=logliktot,indicator=indicator,const=const,sig=.1)
   res2=HMC_times(q_cur=currentval$times,nsites=nsites,tus=currentval$tus2,U=U,theta=currentval$theta,result=currentval$result,grid=currentval$grid,eps=eps,L=8,rand_leap=TRUE)
+  #res2[[j]]$Ind
   if (res2$Ind==1){
     currentval$tus2=res2$pos_summ
     currentval$us2=currentval$tus2$logpos;currentval$dus2=currentval$tus2$dlogpos;currentval$times=res2$q;times_list<-cbind(times_list,res2$q);
     currentval$grid=res2$pos_summ$grid
     currentval$lik_init=res2$pos_summ$init
+    #print(sum(currentval$times))
+    #currentval$theta<-res2[[j]]$pos_summ$newtheta
+    # if (max(currentval$grid)<sum(currentval$timesL[[j]])) {
+    #   #break I need to expand the grid
+    #   currentval$theta<-res2[[j]]$pos_summ$newtheta
+    #   currentval$grid<-res2[[j]]$pos_summ$grid
+    #   newl<-length(currentval$grid)-1
+    #   oldl<-nrow(theta_list)
+    #   intl = currentval$grid[2]-currentval$grid[1]; 
+    #   currentval$grid[length(currentval$grid)]<-sum(currentval$timesL[[j]])
+    #   midpts<-((c(0,currentval$grid[-length(currentval$grid)])+currentval$grid)/2)[-1]
+    #   #midpts = grid[-1]-intl/2
+    #   currentval$invC <- Q_matrix(as.matrix(midpts), 0, 1);
+    #   diag(currentval$invC) <- diag(currentval$invC) + 1e-04;
+    #   eig  = spam::eigen.spam(as.spam(currentval$invC), TRUE); currentval$rtEV = sqrt(eig$values);currentval$EVC  = eig$vectors
+    #   if (newl>oldl){
+    #     theta_list<-rbind(theta_list,matrix(NA,nrow=newl-oldl,ncol=ncol(theta_list)))
+    #     theta_list[,ncol(theta_list)]<-currentval$theta[1:newl]
+    #   }else{
+    #     
+    #     theta_list[1:newl,ncol(theta_list)]<-currentval$theta[1:newl]
+    #     if (newl<oldl){theta_list[(newl+1):oldl,ncol(theta_list)]<-NA}
+    #   }
+    # }
+    
+    # if (max(currentval$grid)>sum(currentval$timesL[[j]])) {
+    #   #break; #I need to shrink the grid, reduce theta and update calculations
+    #   currentval$grid<-currentval$grid[1:(max(seq(1,length(currentval$grid))[currentval$grid<sum(currentval$times)])+1)]
+    #   intl = currentval$grid[2]-currentval$grid[1]; midpts = currentval$grid[-1]-intl/2
+    #   currentval$invC <- Q_matrix(as.matrix(midpts), 0, 1);
+    #   diag(currentval$invC) <- diag(currentval$invC) + 1e-04;
+    #   eig  = spam::eigen.spam(currentval$invC, TRUE); currentval$rtEV = sqrt(eig$values);currentval$EVC  = eig$vectors
+    #   where<-ncol(theta_list)
+    #   where2<-nrow(theta_list)
+    #   if (where2>length(currentval$grid)){theta_list[(length(currentval$grid)):where2,where]<-NA}
+    # }
+    # 
+    #currentval$lik_initL[[j]] = coal_lik_init(samp_times = 0, n_sampled = n,coal_times = cumsum(currentval$timesL[[j]]), grid = currentval$grid)
+    #tus1<-U_split(currentval$theta,currentval$lik_init[[j]],currentval$invC,.01,.01)
+    #currentval$us1L[[j]]  = tus1$logpos
+    #currentval$dus1L[[j]] = U_split(currentval$theta,currentval$lik_init[[j]],currentval$invC,.01,.01, TRUE)
     currentval$lik_call<-res2$pos_summ$logliktot
     currentval$coalprior<--res2$pos_summ$logpri
-   }else{
+    #currentval$currentlik<--res2[[j]]$pos_summ$loglik
+    #currentval$gaussprior<--tus1$logpri
+    #probs_list<-rbind(probs_list,c(-res2$pos_summ$loglik,currentval$prior_F,-res2$pos_summ$logpri,currentval$gaussprior))
+  }else{
     times_list<-cbind(times_list,res2$q)
     currentval$lik_call<-res2$pos_summ$logliktot
     currentval$coalprior<--res2$pos_summ$logpri
+    #probs_list<-rbind(probs_list,c(-res2$pos_summ$loglik,currentval$prior_F,-res2$pos_summ$logpri,currentval$gaussprior))
     
   }
   return(list(currentval=currentval,times_list=times_list,acp=res2$Ind))
+  #return(list(currentval=currentval,times_list=times_list,acp=res2$Ind,probs_list=probs_list))
+  
 }
+
+##version with Taylor's approximation
+
+updateTimes_b<-function(currentval,theta_list,prec_list,probs_list,const=1,nsites=nsites,eps=0.04){  
+  res2=HMC_times(q_cur=currentval$times,nsites=nsites,tus=currentval$tus2,U=currentval$Ufun2,theta=currentval$theta,result=currentval$result,grid=currentval$grid,eps=eps,L=8,rand_leap=TRUE)
+  res2$Ind
+  if (res2$Ind==1){
+    currentval$tus2=res2$pos_summ
+    currentval$us2=currentval$tus2$logpos;currentval$dus2=currentval$tus2$dlogpos;currentval$times=res2$q;times_list<-cbind(times_list,res2$q);
+    #print(sum(currentval$times))
+    currentval$theta<-res2$pos_summ$newtheta
+    if (max(currentval$grid)<sum(currentval$times)) {
+      #break
+      currentval$grid<-res2$pos_summ$grid
+      newl<-length(currentval$grid)-1
+      oldl<-nrow(theta_list)
+      intl = currentval$grid[2]-currentval$grid[1]; 
+      currentval$grid[length(currentval$grid)]<-sum(currentval$times)
+      midpts<-((c(0,currentval$grid[-length(currentval$grid)])+currentval$grid)/2)[-1]
+      #midpts = grid[-1]-intl/2
+      currentval$invC <- Q_matrix(as.matrix(midpts), 0, 1);
+      diag(currentval$invC) <- diag(currentval$invC) + 1e-04;
+      eig  = spam::eigen.spam(as.spam(currentval$invC), TRUE); currentval$rtEV = sqrt(eig$values);currentval$EVC  = eig$vectors
+      if (newl>oldl){
+        theta_list<-rbind(theta_list,matrix(NA,nrow=newl-oldl,ncol=ncol(theta_list)))
+        theta_list[,ncol(theta_list)]<-currentval$theta[1:newl]
+      }else{
+        
+        theta_list[1:newl,ncol(theta_list)]<-currentval$theta[1:newl]
+        if (newl<oldl){theta_list[(newl+1):oldl,ncol(theta_list)]<-NA}
+      }
+    }
+    
+    if (max(currentval$grid)>sum(currentval$times)) {
+      #break; #I need to shrink the grid, reduce theta and update calculations
+      currentval$grid<-currentval$grid[1:(max(seq(1,length(currentval$grid))[currentval$grid<sum(currentval$times)])+1)]
+      intl = currentval$grid[2]-currentval$grid[1]; midpts = currentval$grid[-1]-intl/2
+      currentval$invC <- Q_matrix(as.matrix(midpts), 0, 1);
+      diag(currentval$invC) <- diag(currentval$invC) + 1e-04;
+      eig  = spam::eigen.spam(currentval$invC, TRUE); currentval$rtEV = sqrt(eig$values);currentval$EVC  = eig$vectors
+      where<-ncol(theta_list)
+      where2<-nrow(theta_list)
+      if (where2>length(currentval$grid)){theta_list[(length(currentval$grid)):where2,where]<-NA}
+    }
+    
+    currentval$lik_init = coal_lik_init(samp_times = 0, n_sampled = n,coal_times = cumsum(currentval$times), grid = currentval$grid)
+    tus1<-U_split(currentval$theta,currentval$lik_init,currentval$invC,.01,.01)
+    currentval$us1  = tus1$logpos
+    currentval$dus1 = U_split(currentval$theta,currentval$lik_init,currentval$invC,.01,.01, TRUE)
+    currentval$currentlik<--res2$pos_summ$loglik
+    currentval$gaussprior<--tus1$logpri
+    probs_list<-rbind(probs_list,c(-res2$pos_summ$loglik,currentval$prior_F,-res2$pos_summ$logpri,currentval$gaussprior))
+  }else{
+    times_list<-cbind(times_list,res2$q)
+    currentval$currentlik<--res2$pos_summ$loglik
+    currentval$coalprior<--res2$pos_summ$logpri
+    probs_list<-rbind(probs_list,c(-res2$pos_summ$loglik,currentval$prior_F,-res2$pos_summ$logpri,currentval$gaussprior))
+    
+  }
+  return(list(currentval=currentval,probs_list=probs_list,prec_list=prec_list,times_list=times_list,theta_list=theta_list, acp=res2$Ind))
+  
+}
+Tajima_mcmc<-function(seq_seeds,initial_list,F_list,prob_list,times_list,theta_list,precision_list,...){
+  
+  chain.list <- mclapply(1:length(seq_seeds),
+                         function( ii ) {           
+                           ## Set the seed for this core
+                           this.seed <- seq.of.random.seeds[[ii]]
+                           print(paste("Setting the seed to", this.seed))
+                           set.seed(this.seed)
+                           
+                           ## Run the chain on this core
+                           ## N.B. la.get.all() is a helper function to extract 
+                           ##      the relevant initial values for the init.list 
+                           ##      data structure.  
+                           this.chain <- run.chain.2pl(
+                             th.init = la.get.all(init.list, 'theta.abl')[[ii]],
+                             a.init  = la.get.all(init.list, 'a.disc')[[ii]],
+                             b.init  = la.get.all(init.list, 'b.diff')[[ii]],
+                             s2.init = la.get.all(init.list, 'sig2.theta')[[ii]],
+                             ## Set the tuning from the inits list
+                             MH.th = MH.th.list[[ii]],
+                             MH.a  = MH.a.list[[ii]],
+                             MH.b  = MH.b.list[[ii]],
+                             ... ## Set everything else 
+                           )
+                           
+                           ## Return the chain from this core
+                           return( this.chain ) }, 
+                         mc.cores=min(length( seq.of.random.seeds), detectCores() )
+  )
+  
+  ## Save the initial random seed as the name of the chain 
+  names(chain.list) <- unlist(seq.of.random.seeds)
+  
+  ## Convert to a coda::mcmc.list object 
+  converted.chain <- mcmc.list( 
+    lapply( chain.list, function(xx) {
+      mcmc(  t(xx),
+             start=(list(...)$M.burnin + list(...)$M.thin),
+             thin=list(...)$M.thin)
+    }))
+  
+  return(converted.chain)
+}
+
+
+#' Local updates for times
+#' 
+#' @param currenval current state of the chain
+#' @param theta_list value of log Ne(t)
+#' @param prec_list  vector recording precision parameter
+#' @param probs_list matrix with likelihod posterior prior at each iteration
+#' @param const scaling factor
+#' @param nsites mutation rate
+#' 
+#' @return A list with initial values.
+#' @export
 
 updateSingleTime<-function(currentval,theta_list,prec_list,probs_list,const=1,nsites=nsites){  
   #not sampling TMRCA for the moment
   n<-currentval$result$F[1,1]
   who<-sample(seq(1,n-2),1)
   times<-currentval$times
-  # print(paste("sum times 1: ",sum(times),se=""))
+ # print(paste("sum times 1: ",sum(times),se=""))
   if (who==1){
     times[1]<-runif(1,0.00001,currentval$times[2]+currentval$times[1]) #To avoid numerical problems
     times[2]<-sum(currentval$times[1:2])-times[1]
@@ -2182,6 +2373,8 @@ updateSingleTimeL<-function(currentval,times_list,theta_list,prec_list,probs_lis
   
 }
 
+
+
 updateFmat<-function(currentval,F_list,probs_list,const=1,nsites=nsites,oldsuff,p){
   result_new <- python.call("F_sample",oldsuff) 
   result_new$F<-matrix(unlist(result_new$F_mat),nrow=length(result_new$F_mat[[1]]),byrow=TRUE)
@@ -2239,6 +2432,79 @@ updateFmatL<-function(currentval,F_list,probs_list,const=1,nsites=nsites,oldsuff
   return(list(currentval=currentval,probs_list=probs_list,F_list=F_list, acp=acp))
 }
 
+BNPR_multiple <- function(treelist, lengthout = 100, pref=FALSE, prec_alpha=0.01,
+                 prec_beta=0.01, beta1_prec = 0.001, fns = NULL, log_fns = TRUE,
+                 simplify = TRUE, derivative = FALSE, forward = TRUE)
+{
+  if (class(treelist) == "multiphylo")
+  {
+    phylist<-list()
+    for (j in 1:length(treelist)){
+      phylist[[j]]<-summarize_phylo(treelist[[j]])
+    }
+    
+  }else{
+    print("This function only admists multiphylo objects as input")
+    return()
+  }
+  
+  result <- infer_coal_samp(samp_times = phy$samp_times, coal_times = phy$coal_times,
+                            n_sampled = phy$n_sampled, fns = fns, lengthout = lengthout,
+                            prec_alpha = prec_alpha, prec_beta = prec_beta,
+                            beta1_prec = beta1_prec, use_samp = pref, log_fns = log_fns,
+                            simplify = simplify, derivative = derivative)
+  
+  result$samp_times <- phy$samp_times
+  result$n_sampled  <- phy$n_sampled
+  result$coal_times <- phy$coal_times
+  
+  result$effpop     <- exp(-result$result$summary.random$time$`0.5quant`)
+  result$effpopmean <- exp(-result$result$summary.random$time$mean)
+  result$effpop975  <- exp(-result$result$summary.random$time$`0.025quant`)
+  result$effpop025  <- exp(-result$result$summary.random$time$`0.975quant`)
+  
+  result$summary <- with(result$result$summary.random$time,
+                         data.frame(time = ID, mean = exp(-mean),
+                                    sd = sd * exp(-mean),
+                                    quant0.025 = exp(-`0.975quant`),
+                                    quant0.5 = exp(-`0.5quant`),
+                                    quant0.975 = exp(-`0.025quant`)))
+  
+  if (derivative)
+  {
+    if (forward)
+      ind <- c(1:(lengthout-1), (lengthout-1))
+    else
+      ind <- c(1, 1:(lengthout-1))
+    
+    result$derivative <- with(result$result$summary.lincomb,
+                              data.frame(time = result$x, mean = -mean[ind], sd = sd[ind],
+                                         quant0.025 = -`0.975quant`[ind],
+                                         quant0.5   = -`0.5quant`[ind],
+                                         quant0.975 = -`0.025quant`[ind]))
+  }
+  
+  if (pref)
+  {
+    result$beta0     <- result$result$summary.fixed["beta0","0.5quant"]
+    result$beta0summ <- result$result$summary.fixed["beta0",]
+    rownames(result$beta0summ) <- "Beta0"
+    result$beta1     <- result$result$summary.hyperpar[2,"0.5quant"]
+    result$beta1summ <- result$result$summary.hyperpar[2,]
+    rownames(result$beta1summ) <- "Beta1"
+  }
+  
+  return(result)
+}
+
+#' Subsample MCMC
+#' 
+#' @param res iterations MCMC
+#' @param burnin fix the burnin
+#' @param subsample deciding how often to subsample
+#' 
+#' @return A list with initial values.
+#' @export
 
 subsample<-function(res,burnin=0,subsample=1){
   nsamp=dim(res)[2]
@@ -2417,6 +2683,19 @@ localUpdate_RT_FREE<-function(result,n){
 }
 
 
+#' HMC for times
+#' 
+#' @param currenval current state of the chain
+#' @param F_list  currentvalue F matrix
+#' @param probs_list matrix with likelihod posterior prior at each iteration
+#' @param const scaling factor
+#' @param nsites mutation rate
+#' @param oldsuff perfect phylogeny
+#' @param n sample size
+#' 
+#' @return A list with initial values.
+#' @export
+
 updateFmat_Markov_FREE<-function(currentval,F_list,probs_list,const=1,nsites=nsites,oldsuff,n){
   result<-currentval$result
   result_new <- localUpdate_RT_FREE(result,n)
@@ -2489,3 +2768,13 @@ updateFmat_Markov_FREE_L<-function(currentval,F_list,probs_list,const=1,nsites=n
   probs_list<-rbind(probs_list,c(currentval$currentlik,currentval$prior_F,currentval$coalprior,currentval$gaussprior))
   return(list(currentval=currentval,probs_list=probs_list,F_list=F_list, acp=acp))
 }
+
+
+
+#########################
+####### Constrained #####
+#########################
+
+
+
+

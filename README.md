@@ -36,9 +36,11 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
 
 7. [LocalGenealogies](https://github.com/mdkarcher/phylodyn/blob/master/vignettes/LocalGenealogies.Rmd): A short example of MCMC-based inference of effective population size trajectories from a sequence of local genealogies. Genealogies are assumed to be a realization of the Sequentially Markov Coalescent (SMC') model. The methodology is developed in [6]
 
-8. [KingmanTajimaCounting](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/CountSimulatedCoalescentTrees.Rmd): An example under construction. The methodology is developed in [8]
+8. [KingmanTajimaCounting](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/CountSimulatedCoalescentTrees.Rmd): Example that explains how to count tree spaces conditionally on the data. The methodology is developed in [8]
 
 9. [DistanceTrees](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Distance_RankedGenealogies.Rmd) [10]. 
+
+10. [Tajima estimation](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Tajima_estimation.Rmd) Phylodynamic inference by sampling Tajima tree. Methods developed in [9] and [11]. 
 
 ## Datasets
 
@@ -87,8 +89,13 @@ In *Proceedings of the Twenty-Eighth International Conference on Uncertainty in 
 [phylodyn: an R package for phylodynamic simulation and inference](http://onlinelibrary.wiley.com/doi/10.1111/1755-0998.12630/full), 
 Molecular Ecology Resources, 17, 96-100, 2017.
 
-8. L. Cappello and J.A. Palacios. [Sequential Importance Sampling for Multi-Resolution Kingman-Tajima Coalescent Counting](https://arxiv.org/abs/1902.05527), arXiv:1902.05527
+8. L. Cappello and J.A. Palacios. [Sequential Importance Sampling for Multi-Resolution Kingman-Tajima Coalescent Counting](https://arxiv.org/abs/1902.05527), *Annals of Applied Statistics*, in press
 
-9. J.A. Palacios, A. Veber, L. Cappello, Z. Wang, J. Wakeley, S. Ramachandran. [Bayesian Estimation of Population Size Changes by Sampling Tajima's Trees](https://www.biorxiv.org/content/10.1101/605352v1), BioRxiv
+9. J.A. Palacios, A. Veber, L. Cappello, Z. Wang, J. Wakeley, S. Ramachandran. [Bayesian Estimation of Population Size Changes by Sampling Tajima's Trees](https://www.genetics.org/content/early/2019/09/11/genetics.119.302373.article-info?versioned=true), *Genetics*, 214 (3) 967-986
 
-10. J. Kim, N.A. Rosenberg, J.A. Palacios. A Metric Space of Ranked Tree Shapes and Ranked Genealogies. (TBA)
+10. J. Kim, N.A. Rosenberg, J.A. Palacios. [A Metric Space of Ranked Tree Shapes and Ranked Genealogies](https://www.biorxiv.org/content/10.1101/2019.12.23.887125v1.full.pdf), BioRxiv, 2019.
+
+11. O. Maliet, F. Gascuel, A. Lambert. [Ranked Tree Shapes, Nonrandom Extinctions, and the Loss of Phylogenetic Diversity](https://doi.org/10.1093/sysbio/syy030), *Systematic Biology*, 67(6):1025–1040, 2018.
+
+
+12. L. Cappello, A. Veber. J.A. Palacios. [The Tajima heterochronous n-coalescent: inference from heterochronously sampled molecular data](), soon in Arxiv, 2020.
