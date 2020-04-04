@@ -58,7 +58,7 @@ We then simulatue a genealogy with branch lengths defined by the coalescent time
 ```{r}
 tree1<-sample_genealogy(simulation)
 treeP<-read.tree(text=tree1$Newick)
-plot(treeP)
+plot(ladderize(treeP))
 ```
 Note that sample labels are arbitrarly assigned: we first labels of sampling group s_1 as 1 to n_1, then those of sampling s_2 as n_1+1 to n_2 etc. 
 
@@ -81,7 +81,7 @@ Second steps is initializing the MCMC
 
 We initialize the genealogy(ranked tree shape + coalescent times) and the effective population size.
 We also create a file converting the data into nucleotide basis. 
-It is possible either to rely on the serial UPGMA initial genealogy (option 1) or include and input_tree in Newick format (option 2). name_samp is a an array of two columns and number of rows equal to the number of samples, in which the first column is the sampling time, the second the label in the input genealogy. In option 1, the input_tree and name_samp are left blank
+It is possible either to rely on the serial UPGMA initial genealogy (option 1) or include and \texttt{input_tree} in Newick format (option 2). \texttt{name_samp} is a an array of two columns and number of rows equal to the number of samples, in which the first column is the sampling time, the second the label in the input genealogy. In option 1, the \texttt{input_tree} and \texttt{name_samp} are left blank
 ```{r}
 set.seed(123)
 input_tree<-c()
