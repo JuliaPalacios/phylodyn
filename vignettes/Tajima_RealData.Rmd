@@ -1,0 +1,221 @@
+---
+title: Estimation of Covid population size trajectory by sampling Tajima’s
+  trees (Germany)
+author: "Lorenzo Cappello"
+date: "03/26/2020"
+output: html_document
+---
+
+This vignette displays a simulation study designed to approximate an exponential growth population size by sampling Tajima's trees, using `phylodyn`.
+
+We start by loading the required packages.
+
+```{r message=FALSE}
+library(phylodyn)
+library("rPython")
+library("phangorn")
+library("mvtnorm")
+library("ape")
+library("truncnorm")
+```
+
+Load python function file
+```{r}
+path <- paste(system.file(package="phylodyn"), "python/Fsamp_hTDv2.py", sep="/")
+python.load(path)
+```
+
+We first read the observed data in fasta format.
+
+```{r}
+library(seqinr)
+tree1<-read.nexus("~/Documents/Covid_Analysis/alignment/BEAST/mcct_Germany")
+plot(tree1,show.tip.label=FALSE)
+axisPhylo()
+alig = read.FASTA("~/Documents/Covid_Analysis/alignment/BEAST/fastaGermany.fasta")
+n = length(alig)
+ids = names(alig)
+dates_samp<-ymd(substr(ids, start = nchar(ids) - 9, stop = nchar(ids)))
+
+##A rough estimate of mutation rate
+x<-dates_samp-dates_samp[length(dates_samp)]
+hamming<-as.matrix(dist.hamming(as.phyDat(alig),ratio=FALSE))
+reg<-lm(hamming[nrow(hamming),-nrow(hamming)]~-1+x[-nrow(hamming)])
+summary(reg)
+plot(x[-nrow(hamming)],hamming[nrow(hamming),-nrow(hamming)],ylab="Distance to reference",xlab="Time difference (Days)",main=paste("A total of ",round(reg$coefficients[[1]]*28,2)," of mutations per month",sep=""))
+abline(reg)
+
+
+
+#Convert data to 0s and 1s - Assumes the reference sequence is the last row
+data.matrix<-as.character(as.matrix(alig))
+mu<-reg$coefficients[[1]]*ncol(data.matrix)
+tot.row<-nrow(data.matrix)
+binary.matrix<-matrix(0,nrow=nrow(data.matrix),ncol=ncol(data.matrix))
+for (j in 1:ncol(binary.matrix)){
+  tmp<-data.matrix[data.matrix[,j]!=data.matrix[tot.row,j],j]
+  tmp<-tmp[tmp!="n"]
+  tmp<-tmp[tmp!="-"]
+  tmp2<-unique(c(tmp[tmp=="a"],tmp[tmp=="c"],tmp[tmp=="t"],tmp[tmp=="g"]))
+  if (length(tmp2)==1){binary.matrix[data.matrix[,j]==tmp2[1],j]<-1}
+  if (length(tmp2)==2){
+    if (min(dates.tot[data.matrix[,j]==tmp2[1]])<min(dates.tot[data.matrix[,j]==tmp2[2]])){
+      binary.matrix[data.matrix[,j]==tmp2[1],j]<-1
+      binary.matrix[data.matrix[,j]==tmp2[2],j]<-2
+    }else{
+      binary.matrix[data.matrix[,j]==tmp2[1],j]<-2
+      binary.matrix[data.matrix[,j]==tmp2[2],j]<-1
+    }
+    
+  }
+  if (length(tmp2)==3){
+    print(j)
+    break
+  }
+  
+}
+
+tmp<-apply(binary.matrix,2,sum)
+#Only polymorphic sites
+binary.matrix<-binary.matrix[,tmp>0]
+##make it in Tajima Format
+samp.times<-decimal_date(dates_samp)
+order.date<-sort(samp.times,index.return=TRUE,decreasing = TRUE)
+order.date$x
+binary.matrix<-binary.matrix[order.date$ix,]
+
+datatajima<-paste0(binary.matrix[,1],collapse="",sep="")
+for (j in 2:ncol(binary.matrix)){
+  datatajima<-rbind(datatajima,paste0(binary.matrix[,j],collapse="",sep=""))
+}
+
+labels<-ids[order.date$ix]
+ntab<-rev(table(samp.times))
+samp_times<-max(samp.times)-sort(unique(samp.times),decreasing=TRUE)
+```
+
+We can check how many mutations we have sampled simply by 
+```{r}
+length(datatajima)
+```
+
+2) INITIALIZATION
+
+Second steps is initializing the MCMC
+
+We initialize the genealogy(ranked tree shape + coalescent times) and the effective population size.
+We also create a file converting the data into nucleotide basis. 
+It is possible either to rely on the serial UPGMA initial genealogy (option 1) or include and \texttt{input_tree} in Newick format (option 2). \texttt{name_samp} is a an array of two columns and number of rows equal to the number of samples, in which the first column is the sampling time, the second the label in the input genealogy. In option 1, the \texttt{input_tree} and \texttt{name_samp} are left blank
+```{r}
+set.seed(123)
+input_tree<-c()
+name_samp<-c()
+fact<-1
+initial<-initial_tajima_het(datatajima,name="exp70",mu,npoints=49,fact=1,alpha=0.2,samp_times,ntab,input_tree,name_samp)
+```
+
+Then we initialize the MCMC states
+```{r}
+setupchain<-initial_MCMC_het(initial,ngrid=50,mu,ntab,alpha=.1,fact,Nate=100,initial$times,samp_times)
+```
+
+Set inputs variables for the MCMC (eps:step size HMC, Z1 and sigma see Cappello et al. 2020 Section 4,NSim: lenght of the MC chain)
+```{r}
+eps<-0.07
+Z1<-2
+sigma<-0.02
+Nsim<-300
+```
+
+Set a number of arrays to store ouput of the MCMC
+```{r}
+acp1<-0;acp2<-0;acp3<-0; acp2_t<-0
+currentval<-setupchain$currentval
+theta_list<-setupchain$theta_list
+prec_list<-setupchain$prec_list
+probs_list<-setupchain$probs_list
+times_list<-setupchain$times_list
+oldsuff<-initial$oldsuff
+```
+
+3) MCMC INFERENCE
+
+
+Start the MCMC iteration
+
+
+
+```{r}
+n<-ntab
+for (j in 1:Nsim){
+  #1)Hamiltionian MC update for the effective population size (Lan et al. 2015)
+  thetaup<-updateTheta_het(currentval,theta_list,prec_list,probs_list,const=1,1,nsites=mu,eps)
+  thetaup$acp
+  currentval<-thetaup$currentval; theta_list<-thetaup$theta_list; prec_list<-thetaup$prec_list; probs_list<-thetaup$probs_list
+  acp1<-acp1+thetaup$acp
+
+  #2) Local-Global update for the coalescent times via a truncated normal (Cappello et al. 2020)
+  timesup<-updateTimes_hetLocal(n,oldsuff,currentval,times_list,theta_list,prec_list,probs_list,const=1,mu,samp_times,Z1,sigma)
+  currentval<-timesup$currentval;theta_list<-timesup$theta_list; prec_list<-timesup$prec_list; probs_list<-timesup$probs_list; times_list<-timesup$times_list
+  timesup$acp
+  acp2<-acp2+timesup$acp
+
+  #3) Local update for the ranked tree shapes (Palacios et al. 2019, Cappello et al. 2020)
+  FMatupMarkov_FREE<-updateFmat_Markov_FREE_het(currentval,probs_list,const=1,mu,oldsuff,n)
+  currentval<-FMatupMarkov_FREE$currentval; probs_list<-FMatupMarkov_FREE$probs_list;
+  acp3<-acp3+FMatupMarkov_FREE$acp
+
+
+
+}
+```
+
+Save all the output in a list 
+```{r}
+results<-list(acp1=acp1, acp2=acp2,acp3=acp3,currentval=currentval,times_list=times_list,probs_list=probs_list,theta_list=theta_list,prec_list=prec_list)
+```
+
+4) POSTERIOR ANALYSIS
+
+Here we want to plot the posterior of the effective population size. 
+
+We first extract time and log population size MCMC samples
+
+```{r}
+times_list=results$times_list
+theta_list=results$theta_list
+```
+
+And the last value of the chain
+
+```{r}
+currentval=results$currentval
+```
+
+We then subsample to account for the burnin and subsample frequency chosen 
+```{r}
+times_list2<-subsample(times_list,burnin=1,subsample=1)
+theta_list2<-subsample(theta_list,burnin=1,subsample=1)
+```
+
+Prepare the R list to plot the effective population size
+```{r}
+res_BNPR3<-initial$res2b
+fmed = apply(exp(theta_list2), MARGIN = 1, FUN = stats::median,na.rm=TRUE)
+flow = apply(exp(theta_list2), MARGIN = 1, FUN = function(x) stats::quantile(x, .025, na.rm=TRUE) )
+fhi  = apply(exp(theta_list2), MARGIN = 1, FUN = function(x) stats::quantile(x, .975, na.rm=TRUE))
+intl<-currentval$grid[2]-currentval$grid[1]
+grid2<-cumsum(c(0,rep(intl,nrow(theta_list2))))
+fact<-1
+midpts2<-grid2[-1]-intl/2
+res_BNPR3$x<-midpts2/fact
+res_BNPR3$grid<-grid2/fact
+res_BNPR3$effpop<-fmed[-length(fmed)]/fact
+res_BNPR3$effpop975<-fhi[-length(fmed)]/fact
+res_BNPR3$effpop025<-flow[-length(fmed)]/fact
+```
+
+```{r, fig.width=8.5, fig.height=5}
+plot_BNPR(res_BNPR3)
+,heatmaps=FALSE,heatmap_labels = FALSE,ylab="Ne(t)",main="(A) Ne(t) BESTT")
+```
