@@ -40,7 +40,7 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
 
 9. [DistanceTrees](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Distance_RankedGenealogies.Rmd) [10]. 
 
-10. [Tajima estimation](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Tajima_estimation.Rmd) Phylodynamic inference by sampling Tajima tree. Methods developed in [9] and [11]. 
+10. [Tajima estimation](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Tajima_estimation.Rmd) Phylodynamic inference by sampling Tajima tree. Methods developed in [9] and [12]. 
 
 ## Datasets
 
