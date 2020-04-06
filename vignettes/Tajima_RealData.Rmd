@@ -29,9 +29,6 @@ We first read the observed data in fasta format.
 
 ```{r}
 library(seqinr)
-tree1<-read.nexus("~/Documents/Covid_Analysis/alignment/BEAST/mcct_Germany")
-plot(tree1,show.tip.label=FALSE)
-axisPhylo()
 alig = read.FASTA("~/Documents/Covid_Analysis/alignment/BEAST/fastaGermany.fasta")
 n = length(alig)
 ids = names(alig)
@@ -49,7 +46,7 @@ abline(reg)
 
 #Convert data to 0s and 1s - Assumes the reference sequence is the last row
 data.matrix<-as.character(as.matrix(alig))
-mu<-reg$coefficients[[1]]*ncol(data.matrix)
+mu<-reg$coefficients[[1]]*ncol(data.matrix)*365
 tot.row<-nrow(data.matrix)
 binary.matrix<-matrix(0,nrow=nrow(data.matrix),ncol=ncol(data.matrix))
 for (j in 1:ncol(binary.matrix)){
@@ -216,6 +213,5 @@ res_BNPR3$effpop025<-flow[-length(fmed)]/fact
 ```
 
 ```{r, fig.width=8.5, fig.height=5}
-plot_BNPR(res_BNPR3)
-,heatmaps=FALSE,heatmap_labels = FALSE,ylab="Ne(t)",main="(A) Ne(t) BESTT")
+plot_BNPR(res_BNPR3,heatmaps=FALSE,heatmap_labels = FALSE,ylab="Ne(t)",main="(A) Ne(t) BESTT",ylim=c(.00001,4),xlim=c(.25,0))
 ```
