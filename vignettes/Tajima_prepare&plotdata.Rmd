@@ -1,0 +1,79 @@
+---
+title: "Plotting perfect phylogeny"
+author: "Lorenzo Cappello"
+date: "16/4/2020"
+output: html_document
+---
+
+
+
+```{r}
+library(phylodyn)
+library(seqinr)
+library("igraph")
+
+
+path <- paste(system.file(package="phylodyn"), "data/synth_hetdata.fasta", sep="/")
+data<-read.fasta(path)
+names<-names(data)
+seq_mat<-matrix(unlist(data),nrow=length(data),byrow=TRUE)
+```
+
+Remove missing entries (it is enough to check which entries are missing in the first sequence)
+```{r,}
+id_0<-which(seq_mat[1,]==" ")
+seq_mat<-seq_mat[,-id_0]
+```
+
+
+#Extract sequence names and sampling times from the fasta label. Sequeences 
+In this example we <sequence name>_<sampling time>
+```{r,}
+seq_names<-c()
+samp_times<-c()
+sequences<-list()
+for (r in names){
+    seq_names<-c(seq_names,strsplit(r,"_")[[1]][1])
+    samp_times<-c(samp_times,as.numeric(strsplit(r,"_")[[1]][2]))
+}
+name_samp<-cbind(samp_times,seq_names)
+```
+
+
+
+Convert data into a 0-1 incidence matrix. In this case, we know that the last sequence is the reference sequence (check the seq_names vector). Otherwise one can upload it from a different source.
+```{r,}
+inc_mat<-matrix(0,dim(seq_mat)[1],dim(seq_mat)[2])
+
+
+for (i in 1:dim(inc_mat)[2]){
+  inc_mat[1:(dim(inc_mat)[1]-1),i]<-(seq_mat[1:(dim(inc_mat)[1]-1),i]!=seq_mat[dim(inc_mat)[1],i])*1
+}
+
+rownames(inc_mat)<-seq_names
+```
+
+
+Now, we put the data in the format that are read by the function in the package:each row represents a segregating site, each column is a sample. 
+
+```{r,}
+inc_mat1<-inc_mat[sample(33),]
+data_taj<-"0"
+for (i in 1:dim(inc_mat)[2]){
+  data_taj<-rbind(data_taj,paste(inc_mat1[,i],collapse = ""))
+}
+data_taj<-as.matrix(data_taj[-1,])
+```
+
+Compute the perfect phylogeny and plot it.
+
+```{r,}
+oldsuff<-tajima_perphylo(data_taj)
+#Plot perfect phylogeny
+mutations<-rep("AAAA",length(oldsuff$mylist))
+for (j in 1:length(oldsuff$mylist)){
+  mutations[j]<-paste0(oldsuff$mylist[[j]]$y,collapse="-")
+}
+graph_gene_tree_mut(oldsuff$nodes,mutations)
+```
+

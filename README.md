@@ -42,6 +42,8 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
 
 10. [Tajima estimation](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Tajima_estimation.Rmd) Phylodynamic inference by sampling Tajima tree. Methods developed in [9] and [12]. 
 
+11. [Tajima plotting data](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Tajima_prepare&plotdata.Rmd) Plot the perfect phylogeny of the data.
+
 ## Datasets
 
 Datasets below can be found at: https://github.com/mdkarcher/PhyloData/

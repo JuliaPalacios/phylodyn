@@ -104,11 +104,20 @@ graph_gene_tree<-function(suff){
   edges<-cbind(new1[,2],new1[,1])
   g1<-graph_from_edgelist(edges)
   g2<-layout_as_tree(g1, root = 1, circular = FALSE, mode = "out", flip.y = TRUE)
-  plot(g1,layout=g2,edge.arrow.size=.2,vertex.color="lightblue", vertex.label.cex=.7, vertex.label=descendants,
+  plot(g1,layout=g2,edge.arrow.size=.2,vertex.color="lightblue", vertex.label.cex=1, vertex.label=descendants,
        edge.label=suff[,4])
 }
 
-graph_gene_tree2<-function(suff,mutations){
+
+#' Plot perfect phylogeny
+#' 
+#' @param suff is the output of tajima_perfect phylogeny
+#' @param mutations is a vector recording the mutation on each edge of the perfect phylogeny
+#'   
+#' @return plot automotically the perfect phylogeny
+#' @export
+
+graph_gene_tree_mut<-function(suff,mutations){
   #suff<-oldsuff$nodes
   labels<-sort(unique(c(suff[,1],suff[,2])))
   new1<-suff[,1:2]
@@ -125,12 +134,11 @@ graph_gene_tree2<-function(suff,mutations){
     }
   }
   
-  library("igraph")
   edges<-cbind(new1[,2],new1[,1])
   g1<-graph_from_edgelist(edges)
   g2<-layout_as_tree(g1, root = 1, circular = FALSE, mode = "out", flip.y = TRUE)
-  plot(g1,layout=g2,edge.arrow.size=.2,vertex.color="lightblue", vertex.label.cex=.7, vertex.label=descendants,
-       edge.label=mutations,edge.label.cex=.6,edge.label.color="red",vertex.size=6)
+  plot(g1,layout=g2,edge.arrow.size=.2,vertex.color="lightblue", vertex.label.cex=1, vertex.label=descendants,
+       edge.label=mutations,edge.label.cex=0.9,edge.label.color="red")
 }
 
 
@@ -259,6 +267,47 @@ simulate_data_het<-function(mu,tree,SimTimeHet){
 ##################################################
 ##### Perfect phylogeny heterochronous ##### ####
 ##################################################
+
+
+#' Prepare the perfect phylogeny to be used for plotting (not the one used in the actual code)
+#' 
+#' @param data in the Tajima format (rows are segrating sites and columns are the sequence)
+#'   
+#' @return perfect phylogeny 
+#' @export
+
+tajima_perphylo<-function(data){
+  oldsuff<-sufficient_stats_het(data)
+  nodes=oldsuff$nodes
+  mylist=oldsuff$mylist
+  listnode<-unique(c(nodes[,1],nodes[,2]))
+  leafnodes<-nodes[nodes[,5]==1,1]
+  collap<-nodes[nodes[,4]>1,1]
+  if (length(collap)>=1){
+    for (i in 1:length(collap)){
+      newline<-c()
+      idcollap<-which(nodes[,1]==collap[i])
+      for (j in 1:(nodes[idcollap,4]-1)){
+        newnode<-max(listnode)+1
+        newline<-c(newline, c(newnode,nodes[idcollap,2:3],1,nodes[idcollap,5]))
+        listnode<-c(listnode,newnode)
+        newlist<-list()
+        newlist$x<-nodes[idcollap,3]
+        newlist$y<-mylist[[idcollap]]$y[1]
+        mylist[[idcollap]]$y<-mylist[[idcollap]]$y[-1]
+        mylist[[length(mylist)+1]]<-newlist
+      }
+      nodes[idcollap,4]=1
+      newmat<-matrix(newline,ncol=5,byrow=TRUE)
+      nodes<-rbind(nodes,newmat)
+    }
+  }
+  oldsuff$nodes<-nodes
+  oldsuff$mylist<-mylist
+  return(oldsuff)
+}
+
+
 
 sufficient_stats_het<-function(data){
   #Update Dec 2017
