@@ -1,0 +1,91 @@
+---
+title: "Adaptive_preferential_sampling_with_simulated_data"
+author: "Lorenzo Cappello"
+date: "August 18, 2020"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Adaptive_preferential_sampling_with_simulated_data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+Install also the R package adapref at https://github.com/lorenzocapp/adapref. 
+This package complements phylodyn allowing for adaptive preferential sampling
+```{r setup}
+library(adapref)
+```
+
+We will first define a sampling rate and the effective population size functions
+Note: you need to have installed phylodyn, spmrf and rstan. 
+
+```{r}
+
+set.seed(123)
+n<-100
+
+bottleneck_traj<-function(t){
+  result=rep(0,length(t))
+  result[t<=0.15]<-10
+  result[t>0.15 & t<0.3]<-10*exp(3.004268-20*t[t>0.15 & t<0.3]) #50 times smaller
+  result[t>=0.3]<-0.5
+  return(result)
+}
+
+sampling_traj<-function(t){
+  result=rep(0,length(t))
+  result[t<=0.22]<-10*exp(1.404268-20*t[t<=0.22])
+  result[t>0.22]<-0.5
+  return(result*40)}
+```
+
+We now sample the sampling times, coalescent times, and a corresponding genealogy
+Note that in the samp_times vector, we artificially make the first sampling time zero.
+n_sampled is going to be a vector of 1, because the Poisson process samples one event a time
+
+We the nplot the simulated genealogy. 
+```{r}
+samp_times<-c(0,sampsim_thin(max.n=n-1,traj=sampling_traj,xlim=c(0,3))[-n+1])
+n_sampled <- rep(1,n) # simulation like this it will be like this.
+simulation<-phylodyn::coalsim(samp_times,n=n_sampled, traj = bottleneck_traj)
+tree1<-phylodyn::sample_genealogy(simulation)
+treeP<-ape::read.tree(text=tree1$Newick)
+plot(treeP)
+
+```
+
+We now defines the various representation of the data that are needed for the estimation.
+We also define the grid constituted by ngr points. 
+```{r}
+phyy<-phylodyn::summarize_phylo(treeP)
+coaldat<-list(coal_times=phyy$coal_times,intercoal_times=c(phyy$coal_times[1],diff(phyy$coal_times)),samp_times=phyy$samp_times,n_sampled=phyy$n_sampled)
+ngr=100
+sgrid <- spmrf::makeGrid(coal_times = coaldat$coal_times, samp_times = phyy$samp_times, Ngrid=(ngr+1))
+cdat<-samp_and_coalescent_data(samp_times=phyy$samp_times,n_sampled = phyy$n_sampled,coal_times=coaldat$coal_times,grid=sgrid$grid)
+
+```
+
+We can either to INLA or HMC posterior approximation.
+First we show how to do INLA: the first line use the built in procedure to choose precisions hyperparameters of the fields; second line, it is the actually posterior approximation
+
+
+```{r}
+
+zeta<-set_prec_parameters(phylo = coaldat, ncell = ngr, alpha = 0.05, order.c = 1, order.s = 1)
+res<-BNPR_PS_ada(coaldat,lengthout=100,zeta1=zeta$zeta1,zeta2=zeta$zeta2)
+
+```
+
+Now, we plot the posterior of N_e(t) and beta(t)
+```{r}
+ phylodyn::plot_BNPR(res,heatmaps=TRUE,heatmap_labels = FALSE,ylab="",xlab = "",main="effective pop size")
+
+plot_beta(res,heatmaps=TRUE,heatmap_labels=FALSE,main="beta",ylim=c(10,100),xlim=c(1,0))
+
+```

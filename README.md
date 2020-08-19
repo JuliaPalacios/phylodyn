@@ -44,6 +44,8 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
 
 11. [Tajima plotting data](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Tajima_prepare&plotdata.Rmd) Plot the perfect phylogeny of the data.
 
+12. [Adaptive preferential sampling](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Adaptive_prefsamp_INLA.Rmd) Show how to use the adaptive preferential sampling using the INLA approximation.
+
 ## Datasets
 
 Datasets below can be found at: https://github.com/mdkarcher/PhyloData/
