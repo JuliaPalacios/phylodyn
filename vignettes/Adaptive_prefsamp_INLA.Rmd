@@ -52,7 +52,7 @@ n_sampled is going to be a vector of 1, because the Poisson process samples one 
 We the nplot the simulated genealogy. 
 ```{r}
 samp_times<-c(0,sampsim_thin(max.n=n-1,traj=sampling_traj,xlim=c(0,3))[-n+1])
-n_sampled <- rep(1,n) # simulation like this it will be like this.
+n_sampled <- rep(1,n) 
 simulation<-phylodyn::coalsim(samp_times,n=n_sampled, traj = bottleneck_traj)
 tree1<-phylodyn::sample_genealogy(simulation)
 treeP<-ape::read.tree(text=tree1$Newick)
