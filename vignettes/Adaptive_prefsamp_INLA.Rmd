@@ -60,8 +60,8 @@ plot(treeP)
 
 ```
 
-We now defines the various representation of the data that are needed for the estimation.
-We also define the grid constituted by ngr points. 
+We now define the various representation of the data that are needed for the estimation.
+We also define the grid of ngr points. 
 ```{r}
 phyy<-phylodyn::summarize_phylo(treeP)
 coaldat<-list(coal_times=phyy$coal_times,intercoal_times=c(phyy$coal_times[1],diff(phyy$coal_times)),samp_times=phyy$samp_times,n_sampled=phyy$n_sampled)
@@ -71,8 +71,8 @@ cdat<-samp_and_coalescent_data(samp_times=phyy$samp_times,n_sampled = phyy$n_sam
 
 ```
 
-We can either to INLA or HMC posterior approximation.
-First we show how to do INLA: the first line use the built in procedure to choose precisions hyperparameters of the fields; second line, it is the actually posterior approximation
+We can either use INLA or HMC posterior approximation.
+First we show how to do it with INLA: the first line use the built in procedure to choose precision hyperparameters of the fields; second line, it is the actual posterior approximation
 
 
 ```{r}
