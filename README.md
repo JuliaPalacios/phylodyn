@@ -44,7 +44,7 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
 
 11. [Tajima plotting data](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Tajima_prepare&plotdata.Rmd) Plot the perfect phylogeny of the data.
 
-12. [Adaptive preferential sampling](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Adaptive_prefsamp_INLA.Rmd) Show how to use the adaptive preferential sampling using the INLA approximation developed in [12].
+12. [Adaptive preferential sampling](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Adaptive_prefsamp_INLA.Rmd) Show how to use the adaptive preferential sampling using the INLA approximation developed in [13].
 
 ## Datasets
 
@@ -102,4 +102,6 @@ Molecular Ecology Resources, 17, 96-100, 2017.
 11. O. Maliet, F. Gascuel, A. Lambert. [Ranked Tree Shapes, Nonrandom Extinctions, and the Loss of Phylogenetic Diversity](https://doi.org/10.1093/sysbio/syy030), *Systematic Biology*, 67(6):1025–1040, 2018.
 
 
-12. L. Cappello, A. Veber. J.A. Palacios. [The Tajima heterochronous n-coalescent: inference from heterochronously sampled molecular data](https://arxiv.org/pdf/2009.02307.pdf), soon in Arxiv, 2020.
+12. L. Cappello, A. Veber., J.A. Palacios. [The Tajima heterochronous n-coalescent: inference from heterochronously sampled molecular data](https://arxiv.org/pdf/2004.06826.pdf), Arxiv, 2020.
+
+13. L. Cappello, J.A. Palacios. [Adaptive preferential sampling in phylodynamics](https://arxiv.org/pdf/2009.02307.pdf), Arxiv, 2020.
