@@ -39,18 +39,18 @@ make_taxa = function(tree, units = "years") {
 #' @export
 #' 
 #' @examples
-make_alignment = function(nexus_data) {
-  alig = read.nexus.data(nexus_data)
-  n = length(alig)
-  ids = names(alig)
+#make_alignment = function(nexus_data) {
+#  alig = read.nexus.data(nexus_data)
+#  n = length(alig)
+#  ids = names(alig)
   
-  items = list()
-  for (i in 1:n) {
-    id = ids[i]
-    seq = paste0(alig[[i]], collapse = "")
-    seq = str_to_upper(seq)
-    items[[i]] = sprintf('\t\t<sequence>\n\t\t\t<taxon idref="%s"/>\n\t\t\t%s\n\t\t</sequence>',
-                         id, seq)
-  }
-  return(paste('\t<alignment id="alignment" dataType="nucleotide">', paste0(items, collapse = '\n'), '\t</alignment>', sep = '\n'))
-}
+#  items = list()
+#  for (i in 1:n) {
+#    id = ids[i]
+#    seq = paste0(alig[[i]], collapse = "")
+#    seq = str_to_upper(seq)
+#    items[[i]] = sprintf('\t\t<sequence>\n\t\t\t<taxon idref="%s"/>\n\t\t\t%s\n\t\t</sequence>',
+#                         id, seq)
+#  }
+#  return(paste('\t<alignment id="alignment" dataType="nucleotide">', paste0(items, collapse = '\n'), '\t</alignment>', sep = '\n'))
+#}
