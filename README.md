@@ -97,7 +97,7 @@ Molecular Ecology Resources, 17, 96-100, 2017.
 
 9. J.A. Palacios, A. Veber, L. Cappello, Z. Wang, J. Wakeley, S. Ramachandran. [Bayesian Estimation of Population Size Changes by Sampling Tajima's Trees](https://www.genetics.org/content/early/2019/09/11/genetics.119.302373.article-info?versioned=true), *Genetics*, 214 (3) 967-986
 
-10. J. Kim, N.A. Rosenberg, J.A. Palacios. [A Metric Space of Ranked Tree Shapes and Ranked Genealogies](https://www.biorxiv.org/content/10.1101/2019.12.23.887125v1.full.pdf), BioRxiv, 2019.
+10. J. Kim, N.A. Rosenberg, J.A. Palacios. [Distance Metrics for Ranked Evolutionary Trees](https://doi.org/10.1073/pnas.1922851117), *Proceedings of the National Academy of Sciences*, 117(46):28876-28886, 2020.
 
 11. O. Maliet, F. Gascuel, A. Lambert. [Ranked Tree Shapes, Nonrandom Extinctions, and the Loss of Phylogenetic Diversity](https://doi.org/10.1093/sysbio/syy030), *Systematic Biology*, 67(6):1025–1040, 2018.
 
