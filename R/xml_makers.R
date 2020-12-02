@@ -29,28 +29,4 @@ make_taxa = function(tree, units = "years") {
   return(paste('\t<taxa id="taxa">', paste0(items, collapse = '\n'), '\t</taxa>', sep = '\n'))
 }
 
-#' Make alignment BEAST XML block
-#' 
-#' @param nexus_data character filename of nexus file containing the sequence 
-#'   data to be processed.
-#'   
-#' @return a character string to be pasted into the alignment block of the BEAST
-#'   XML.
-#' @export
-#' 
-#' @examples
-#make_alignment = function(nexus_data) {
-#  alig = read.nexus.data(nexus_data)
-#  n = length(alig)
-#  ids = names(alig)
-  
-#  items = list()
-#  for (i in 1:n) {
-#    id = ids[i]
-#    seq = paste0(alig[[i]], collapse = "")
-#    seq = str_to_upper(seq)
-#    items[[i]] = sprintf('\t\t<sequence>\n\t\t\t<taxon idref="%s"/>\n\t\t\t%s\n\t\t</sequence>',
-#                         id, seq)
-#  }
-#  return(paste('\t<alignment id="alignment" dataType="nucleotide">', paste0(items, collapse = '\n'), '\t</alignment>', sep = '\n'))
-#}
+
