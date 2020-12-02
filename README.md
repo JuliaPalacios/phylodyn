@@ -46,6 +46,9 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
 
 12. [Adaptive preferential sampling](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Adaptive_prefsamp_INLA.Rmd) Show how to use the adaptive preferential sampling using the INLA approximation developed in [13].
 
+13. [Simulation](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Simulation.Rmd): A short example of simulation of genealogies under isochronous and heterochronous sampling schemes, illustraring methodology in [2] and [5].
+
+
 ## Datasets
 
 Datasets below can be found at: https://github.com/mdkarcher/PhyloData/
