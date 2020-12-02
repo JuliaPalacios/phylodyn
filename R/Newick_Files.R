@@ -72,6 +72,75 @@ generate_newick<-function(args)
   return(list(newick=out.tree,labels=labels))
 }
 
+#' Returns a phylo object from the argumentes generated with coalsim. This function randomizes topology
+#' 
+#' @param args is a list containing vectors of coalescent times \code{coal_times}, sampling times \code{samp_times}, and number 
+#'   sampled per sampling time \code{n_sampled}, etc. This list is the output of coalsim
+#' @return A list with two elements \code{newikck} contains the tree in phylo format, \code{lables} a vector with tip labels 
+#' @export
+#' 
+#' @examples
+#' constant<-function(x){return (rep(1,length(x)))}
+#' simulation1<-coalsim(0,10,constant)
+#' tree1<-generate_newick_rand(simulation1)
+#' plot(tree1$newick)
+generate_newick_rand <- function(args) {
+    n <- sum(args$n_sampled)
+    labels <- paste(rep("t",n), seq(1,n,1), rep("_",n), 
+                    rep(args$samp_times[1], args$n_sampled[1]), sep="")
+    
+    #we now choose labels at random to coalesce 
+    tb <- args$n_sampled[1] #Total branches (initial)
+    s <- 0 #time for branch lengths
+    temp_labels <- labels[1:tb]
+    temp_times <- rep(args$samp_times[1], args$n_sampled[1])
+    initial.row <- 2
+    args2 <- gen_INLA_args(args$samp_times, args$n_sampled, args$coal_times)
+    
+    for (j in 2:length(args2$event)) { # iterate over events from event #2
+        
+        if (args2$event[j] == 1) { # if the event is coalescent
+            s <- args2$s[j]; # coalescent time
+            ra <- sample(tb, 2) # choose a pair
+            
+            if (tb > 1) { # if (ra[1]<tb & ra[2]<tb)
+                new_label <- paste("(", temp_labels[ra[1]], ":", 
+                                   s - temp_times[ra[1]], ",", 
+                                   temp_labels[ra[2]], ":", 
+                                   s - temp_times[ra[2]], ")", sep="")
+                temp_labels[min(ra)] <- new_label
+                temp_labels <- temp_labels[-max(ra)]
+                temp_times[min(ra)] <- s
+                temp_times <- temp_times[-max(ra)]
+            }
+            tb <- tb - 1
+            
+        } else { #The event is sampling. I will be adding samples at 
+            s <- args2$s[j]; 
+            
+            if (args$n_sample[initial.row]==1) {
+                temp_labels <- c(temp_labels,
+                                 labels[cumsum(args$n_sampled)[initial.row]])
+                initial.row <- initial.row + 1
+                tb <- tb + 1
+                temp_times <- c(temp_times, s)        
+            } else {
+                end <- cumsum(args$n_sampled)[initial.row]
+                ini <- cumsum(args$n_sampled)[initial.row - 1] + 1
+                for (k in ini:end) {
+                    temp_labels <- c(temp_labels, labels[k])
+                    tb <- tb + 1
+                    temp_times <- c(temp_times, s)      
+                }
+                initial.row <- initial.row + 1
+            }
+        }
+    }  
+    
+    out.tree <- ape::read.tree(text=paste(temp_labels, ";", sep=""))
+    return(list(newick=out.tree, labels=labels))
+  
+
 generate_newick_old<-function(args,sample)
 {
   n<-sum(sample[,1])
