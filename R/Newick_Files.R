@@ -139,7 +139,7 @@ generate_newick_rand <- function(args) {
     
     out.tree <- ape::read.tree(text=paste(temp_labels, ";", sep=""))
     return(list(newick=out.tree, labels=labels))
-  
+}  
 
 generate_newick_old<-function(args,sample)
 {
