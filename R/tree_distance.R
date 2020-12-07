@@ -464,5 +464,196 @@ consolidateF<-function(Fju){
 }
 
 
+gen.tr.data2<-function(tr, tol=13) {
+  ## ================================================================
+  # Pretending all lineages are sampled at 0 and adjusting for lineages sampled at different times.
+  # This is for computing version 2 of the distance between hetrochronous trees
+  # Get depth of each coalescent node and relabel
+  # The time starts from zero at the first sampling event (u_{n+m-1}).
+  # This is a revised version to correct for the sampling time numerical issue.
+  # Instead of rounding up all edge and branch lengths, it clusters
+  # sampling events occuring within tol into one sampling event.
+  #
+  ## Input:
+  #   tr: phylo object tree.
+  #   tol: numerical precision to round up time at each node to avoid
+  #           the nodes sampled at the same time is treated as sampled
+  #           at different times due to numerical error.
+  #
+  ## Output:
+  #   list object containing the following
+  #   Fmat: F-matrix of the input tr
+  #   u.info: data.frame with time, event type, and other info of the tree
+  #
+  # Note that the tip labels are always labled with 1:n.tip and
+  # the internal nodes are (n.tip+1):(2*n.tip-1) in phylo.
+  
+  if (class(tr) != 'phylo') {
+    stop('The input tree must be a phylo object')
+  }
+  
+  edge.mat <- tr$edge
+  n.sample <- tr$Nnode + 1
+  
+  t.tot <- max(ape::node.depth.edgelength(tr))
+  n.t <-  t.tot - ape::node.depth.edgelength(tr)
+  
+  edge.mat <- tr$edge
+  t.dat <- data.frame(lab.1=edge.mat[,1], lab.2=edge.mat[,2],
+                      t.end=n.t[edge.mat[,1]], t.start=n.t[edge.mat[,2]])
+  t.dat <- t.dat[order(t.dat$lab.2), ]
+  ##Making times 0
+  t.dat2<-t.dat
+  t.dat2[t.dat2[,2]<=n.sample,4]<-0
+  # coalescent times
+  coal.t <- sort(n.t[(n.sample+1) : length(n.t)])
+  n.c.event <- length(coal.t) #number of coalescent event
+  
+  if (any(diff(coal.t) == 0)) {
+    stop('more than one coalescent event at a given time.')
+  }
+  
+  # sampling times
+  # correct for numerical issue in sampling time
+  tmp.s.t <- round(n.t[1 : n.sample], digits=tol)
+  #just making them all 0s
+  #tmp.s.t<-rep(0,length(tmp.s.t))
+  for (i in 1:n.sample) {
+    tmp.ind <- which(tmp.s.t == tmp.s.t[i])
+    if (length(tmp.ind) > 1) {
+      group.t <- min(n.t[tmp.ind]) # replace with min of grouped sampling time
+      n.t[tmp.ind] <- group.t
+      t.dat[tmp.ind, 4] <- group.t
+    }
+  }
+  sample.t <- sort(unique(n.t[1 : n.sample]))
+  n.s.event <- length(sample.t) # number of sampling events
+  stopifnot(n.s.event == length(unique(tmp.s.t)))
+  
+  
+  # combined time points for F-matrix
+  u.t <- data.frame(t=c(coal.t, sample.t),
+                    type=c(rep('c', n.c.event), rep('s', n.s.event)),
+                    c.id=c(seq(n.c.event), rep(-9, n.s.event)),
+                    s.id=c(rep(-9, n.c.event), seq(n.s.event)),
+                    stringsAsFactors=FALSE)
+  u.t <- u.t[order(u.t$t, decreasing=TRUE),]
+  rownames(u.t) <- paste('u', 1:(n.c.event+n.s.event), sep='.')
+  
+  ## Construct F matrix
+  # n.col = n.row = (# sampling event) + (# of coalescent event) - 1
+  # F(i,j) = # of lineages that exist and do not coalesce in (u_j, u_{j-1}).
+  f.dim0<-n.c.event+1 ##ignoring sampling 
+  #f.dim <- n.s.event + n.c.event
+  Fmat0<-matrix(0,nrow=f.dim0,ncol=f.dim0) #ignoring sampling 
+  Wmat0<-matrix(0,nrow=f.dim0,ncol=f.dim0)
+  #Fmat <- matrix(0, nrow=f.dim, ncol=f.dim)
+  u.t0<-u.t
+  u.t0<-rbind(u.t0[u.t0[,2]=="c",],u.t[nrow(u.t),])
+  coal.t2<-rev(coal.t)
+  for (i in 2:f.dim0) {
+    for (j in 2:i) {
+      u.start <- u.t0$t[i]
+      u.end <- u.t0$t[j-1]
+      Wmat0[i,j]<-u.end-u.start
+      temp<-t.dat$t.start[(t.dat$lab.2<=n.sample) & (t.dat2$t.end >= u.end) & (t.dat2$t.start <= u.start)]
+      temp[temp>u.end]<-u.end
+      temp[temp>coal.t2[i-1]]<-u.end
+      temp<-temp-u.start
+      temp<-temp[temp>0]
+      if (sum(temp)>0){
+        Fmat0[i,j] <- sum((t.dat2$t.end >= u.end) & (t.dat2$t.start <= u.start))-sum(temp)/(u.end-u.start)
+      }else{
+        Fmat0[i,j] <- sum((t.dat2$t.end >= u.end) & (t.dat2$t.start <= u.start))
+        }
+      }
+  }
+  #sum((t.dat$t.end >= u.end) & (t.dat$t.start <= u.start))
+  # for (i in 2:f.dim) {
+  #   for (j in 2:i) {
+  #     u.start <- u.t$t[i]
+  #     u.end <- u.t$t[j-1]
+  #     Fmat[i,j] <- sum((t.dat$t.end >= u.end) & (t.dat$t.start <= u.start))
+  #   }
+  # }
+  
+  return(list(Fmat0=Fmat0, u.info=u.t,Wmat0=Wmat0))
+}
+
+#' Distance between two ranked tree shapes or ranked genealogies (Version 2)
+#'
+#' @param tr.1 An object of class \code{phylo}. Can be either isochronous or heterochronous.
+#' @param tr.2 An object of class \code{phylo}. Can be either isochronous or heterochronous.
+#' @param dist.method "l1" or "l2".
+#' @param weighted A logical value; if \code{TRUE}, weighted distance is computed.
+#'
+#' @return Distance between the input trees \code{tr.1} and \code{tr.2}.
+#'
+#' @details The input trees, tr.1 and tr.2 must have the same number of taxa.
+#' The number of sampling events, however, can differ between two trees.
+#'
+#' \code{dist.method="l1"} option computes Manhattan distance between
+#' F-matrices (flattened as vectors) of tr.1 and tr.2.
+#'
+#' \code{dist.method="l2"} option computes Frobenius distance between
+#' F-matrices (flattened as vectors) of tr.1 and tr.2.
+#'
+#' If \code{weighted=TRUE}, the F-matrix elements are weighted by
+#' the corresponding time intervals.
+#'
+#' If \code{weighted=FALSE}, the F-matrix elements are not weighted by
+#' the corresponding time intervals, i.e., distance is computed using
+#' ranked tree shapes only.
+#'
+#' @examples
+#' # Generate a sample tree
+#' set.seed(1); tr.1 <- ape::rcoal(5)
+#' set.seed(2); tr.2 <- ape::rcoal(5)
+#' dist_pairwise2(tr.1, tr.2, dist.method='l1', weighted=TRUE)
+#'
+#' @author Jaehee Kim, Julia Palacios, Rajanala Samyak
+#'
+#' @references Kim J, Rosenberg NA, Palacios JA, 2019.
+#' \emph{A Metric Space of Ranked Tree Shapes and Ranked Genealogies}.
+#'
+dist_pairwise2<-function (tr.1, tr.2, dist.method = "l1", weighted = FALSE) 
+{
+#  This functions computes the new distance between heterochronous trees
+#  with a constant dimension (coal.events) 
+   if (!(dist.method == "l1" | dist.method == "l2")) {
+    stop("dist.method should be either \"l1\" or \"l2\"")
+  }
+  if (tr.1$Nnode != tr.2$Nnode) {
+    stop("Two trees must have the same number of taxa.")
+  }
+  tr.dat.1 <- gen.tr.data2(tree1)
+  tr.dat.2 <- gen.tr.data2(tree2)
+  if (weighted) {
+    if (dist.method == "l1") {
+      dist <- sum(abs(tr.dat.1$Fmat0*tr.dat.1$Fmat0 - tr.dat.2$Fmat0 * 
+                        tr.dat.2$Wmat0))
+    }
+    else if (dist.method == "l2") {
+      dist <- sqrt(sum((tr.dat.1$Fmat0*tr.dat.1$Fmat0 - tr.dat.2$Fmat0 * 
+                          tr.dat.2$Wmat0)^2))
+    }
+    else {
+      stop("unsupported dist.method")
+    }
+  }
+  else {
+    if (dist.method == "l1") {
+      dist <- sum(abs(tr.dat.1$Fmat0 - tr.dat.2$Fmat0))
+    }
+    else if (dist.method == "l2") {
+      dist <- sqrt(sum((tr.dat.1$Fmat0 - tr.dat.2$Fmat0)^2))
+    }
+    else {
+      stop("unsupported dist.method")
+    }
+  }
+  return(list(dist=dist,Fmat.1=tr.dat.1$Fmat0,Fmat.2=tr.dat.2$Fmat0,w.mat.1=tr.dat.1$Wmat0,w.mat.2=tr.dat.2$Wmat0))
+}
+
 
 
