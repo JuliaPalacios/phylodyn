@@ -577,7 +577,7 @@ gen.tr.data2<-function(tr, tol=13) {
   #   }
   # }
   
-  return(list(Fmat0=Fmat0, u.info=u.t,Wmat0=Wmat0))
+  return(list(Nnode=tr$Nnode,Fmat0=Fmat0, u.info=u.t,Wmat0=Wmat0))
 }
 
 #' Distance between two ranked tree shapes or ranked genealogies (Version 2)
