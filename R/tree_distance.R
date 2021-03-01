@@ -656,4 +656,136 @@ dist_pairwise2<-function (tr.1, tr.2, dist.method = "l1", weighted = FALSE)
 }
 
 
+create.dmat.same.s <- function(Fvec.mat.1, Wvec.mat.1,
+                               Fvec.mat.2, Wvec.mat.2,
+                               dist.method='l1', weighted=F) {
+      ## This function computes distance matrix between heterochronous trees 
+      #  with the same number of sampling event. Since all trees have the same 
+      #  number of sampling event and the number of taxa, all trees share the
+      #  same F-matrix dimension. No time-subdivision step is necessary.
+      #
+      ## This function creates a distance matrix D, where the entry D[i,j]
+      #  represents the distance between i-th and j-th trees.
+      #
+      ## Input: 
+      #       Fvec.mat.1, Wvec.mat.1: Matrices of F-matrix & W-matrix vectors for group 1
+      #       Fvec.mat.2, Wvec.mat.2: Matrices of F-matrix & W-matrix vectors for group 2
+      #       n.tr: number of trees in each group
+      #       dist.method: 'l1' = sum_{ij}(abs(F1[i,j] - F2[i,j]))
+      #                    'l2' = sqrt(sum_{ij}(F1[i,j] - F2[i,j])^2)
+      #       weighted: T/F, weighted by time interval when computing dist.pairwise
+      ## Output:
+      #       Dmat: distance matrix with entries Dmax[i,j] denotes distance
+      #             between tree i and tree j (represented as F-matrix). 
+      #             By definition, this is a symmetric matrix with zero diagonal.
+      #
+      # Fvec.mat, Wvec.mat: 
+      #   col: trees
+      #   row: Fvec or Wvec
+      
+      # ===== group.1 =====
+      if (weighted) {
+            mat.1 <- Fvec.mat.1 * Wvec.mat.1
+      } else {
+            mat.1 <- Fvec.mat.1
+      }
+      rm(Fvec.mat.1, Wvec.mat.1)
+      n.tr.1 <- dim(mat.1)[2]
+      
+      # ===== group.2 =====
+      if (weighted) {
+            mat.2 <- Fvec.mat.2 * Wvec.mat.2
+      } else {
+            mat.2 <- Fvec.mat.2
+      }
+      rm(Fvec.mat.2, Wvec.mat.2)
+      n.tr.2 <- dim(mat.2)[2]
+      
+      # ===== construct distance matrix =====
+      # row: group.1, col: group.2
+      Dmat <- matrix(NA, nrow=n.tr.1, ncol=n.tr.2)
+      
+      for (i in 1:n.tr.1) {
+            if (dist.method == 'l1') {
+                  # L1,1 norm
+                  dist <- colSums(abs(mat.2 - mat.1[ , i]))
+            } else if (dist.method == 'l2') {
+                  # Frobenius norm
+                  dist <- sqrt(colSums((mat.2 - mat.1[ , i])^2))
+            } else {
+                  stop('unsupported dist.method')
+            }
+            
+            Dmat[i, ] <- dist
+            # rm(dist)
+      }
+      
+      stopifnot(!any(is.na(Dmat)))
+      
+      return(Dmat)
+}
+
+# ============================================================
+# construct pairwise comparison vec
+# ============================================================
+
+patch.dmat <- function(n.model, n.sim, save.dir,
+                       dist.method, weighted) {
+      comp.ind <- rbind(gen.lower.tri.ind(n.model),
+                        matrix(rep(1:n.model, each=2), ncol=2, byrow=T))
+      comp.ind <- comp.ind[order(comp.ind[,1], comp.ind[,2]), ]
+      n.comp <- dim(comp.ind)[1]
+      
+      #cl <- makeCluster(detectCores(), outfile='log.txt')
+      cl <- parallel::makeCluster(12, setup_strategy = "sequential")
+      registerDoParallel(cl)
+      
+      dmat.list <- foreach(j = 1:n.comp, .export=c('create.dmat.same.s')) %dopar% {
+            ind.1 <- comp.ind[j, 1]
+            ind.2 <- comp.ind[j, 2]
+            
+            # group 1 
+            load(paste(save.dir, ind.1, '_FWvec_mat.RData', sep=''))
+            Fvec.mat.1 <- Fvec.mat
+            Wvec.mat.1 <- Wvec.mat
+            rm(Fvec.mat, Wvec.mat)
+            
+            # group 2
+            load(paste(save.dir, ind.2, '_FWvec_mat.RData', sep=''))
+            Fvec.mat.2 <- Fvec.mat
+            Wvec.mat.2 <- Wvec.mat
+            rm(Fvec.mat, Wvec.mat)
+            
+            # compute dmat
+            create.dmat.same.s(Fvec.mat.1=Fvec.mat.1, Wvec.mat.1=Wvec.mat.1,
+                               Fvec.mat.2=Fvec.mat.2, Wvec.mat.2=Wvec.mat.2,
+                               dist.method=dist.method, weighted=weighted)
+      }
+      
+      stopCluster(cl)
+      
+      dmat.dim <- n.model * n.sim
+      Dmat <- matrix(NA, nrow=dmat.dim, ncol=dmat.dim)
+      
+      for (i in 1:n.comp) {
+            ind.1 <- comp.ind[i, 1]
+            ind.2 <- comp.ind[i, 2]
+            range.1 <- (1 + (ind.1-1)*n.sim):(ind.1*n.sim)
+            range.2 <- (1 + (ind.2-1)*n.sim):(ind.2*n.sim)
+            
+            Dmat[range.1, range.2] <- dmat.list[[i]]
+      }
+      
+      tmp.dist <- Dmat[lower.tri(Dmat)]
+      stopifnot(!any(is.na(tmp.dist)))
+      Dmat <- t(Dmat)
+      Dmat[lower.tri(Dmat)] <- tmp.dist
+      
+      stopifnot(!any(is.na(Dmat)))
+      
+      return(Dmat)
+}
+
+
+
 
