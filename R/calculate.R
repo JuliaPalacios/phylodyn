@@ -757,3 +757,191 @@ log_samp_mat <- function(popTbl, betaTbl, covariates = NULL,
   
   return(samp_mat)
 }
+
+
+##Functions for infering ``selection" coefficient 
+
+#' Bayesian nonparametric phylodynamic reconstruction of two EPSs, the two trees share baseline Ne
+#' 
+#' @param \code{tree1} and \code{tree2} are two phylo objects 
+#'   sampling times \code{samp_times1} and  \code{samp_times2} encodes sampling information
+#' @param lengthout numeric specifying number of grid points.
+#' @param prec_alpha,prec_beta numerics specifying gamma prior for precision 
+#'   \eqn{\kappa}.
+#' @param beta1_prec numeric specifying precision for normal prior on 
+#'   \eqn{\beta_1}.
+#' @param beta0_remove wheter to have an intercept 
+#'   \eqn{\beta_1}.
+#' @param simplify logical whether to fully bucket all Poisson points.
+#' @param derivative logical whether to calculate estimates of the 
+#'   log-derivative.
+#' @param forward logical whether to use the finite difference approximations of
+#'   the log-derivative as a forward or backward derivative.
+#'   
+#' @return Phylodynamic reconstruction of effective population size at grid 
+#'   points. \code{result} contains the INLA output, \code{data} contains the 
+#'   information passed to INLA, \code{grid} contains the grid end points, 
+#'   \code{x} contains the grid point centers, \code{effpop} contains a vector 
+#'   of the posterior median effective population size estimates, 
+#'   \code{effpop025} and \code{effpop975} contain the 2.5th and 97.5th 
+#'   posterior percentiles, \code{summary} contains a data.frame of the 
+#'   estimates, and \code{derivative} (if \code{derivative = TRUE}) contains a
+#'   data.frame summarizing the log-derivative.
+#' @export
+#' 
+#' @examples
+#' data("NY_flu")
+#' if (requireNamespace("INLA", quietly = TRUE)) {
+#'  res = BNPR(NY_flu)
+#'  plot_BNPR(res)
+#' }
+BNPR_sel <- function (tree1,tree2, samp_times1,samp_times2, lengthout = 100, prec_alpha = 0.01, 
+                      prec_beta = 0.01, beta1_prec = 0.001, beta0_remove=FALSE,
+                      simplify = TRUE, derivative = FALSE, forward = TRUE) 
+{
+  
+  phy1 <- summarize_phylo(tree1)
+  phy1$samp_times <- phy1$samp_times + min(samp_times1)
+  phy1$coal_times <- phy1$coal_times + min(samp_times1)
+  phy2 <- summarize_phylo(tree2)
+  phy2$samp_times <- phy2$samp_times + min(samp_times2)
+  phy2$coal_times <- phy2$coal_times + min(samp_times2)
+  
+  
+  result <- infer_coal_samp_selection(phy1,phy2,lengthout = lengthout, 
+                                      prec_alpha = prec_alpha, prec_beta = prec_beta, beta1_prec = beta1_prec, 
+                                      simplify,beta0_remove)
+  
+  #result$samp_times <- phy$samp_times
+  #result$n_sampled <- phy$n_sampled
+  #result$coal_times <- phy$coal_times
+  result$effpop <- exp(-result$result$summary.random$time$`0.5quant`)
+  result$effpopmean <- exp(-result$result$summary.random$time$mean)
+  result$effpop975 <- exp(-result$result$summary.random$time$`0.025quant`)
+  result$effpop025 <- exp(-result$result$summary.random$time$`0.975quant`)
+  result$summary <- with(result$result$summary.random$time, 
+                         data.frame(time = ID, mean = exp(-mean), sd = sd * exp(-mean), 
+                                    quant0.025 = exp(-`0.975quant`), quant0.5 = exp(-`0.5quant`), 
+                                    quant0.975 = exp(-`0.025quant`)))
+  
+  if (beta0_remove==FALSE){
+  result$beta0 <- result$result$summary.fixed["beta0", "0.5quant"]
+  result$beta0summ <- result$result$summary.fixed["beta0",]
+  rownames(result$beta0summ) <- "Beta0"
+  result$beta0post <- result$result$marginals.fixed$beta0
+  }
+  result$beta1 <- result$result$summary.hyperpar[2, "0.5quant"]
+  result$beta1summ <- result$result$summary.hyperpar[2,]
+  rownames(result$beta1summ) <- "Beta1"
+  result$beta1post <- result$result$marginals.hyperpar$`Beta for time2`
+  
+  return(result)
+}
+
+
+
+
+
+infer_coal_samp_selection <- function(phy1,phy2, lengthout=100, prec_alpha=0.01, prec_beta=0.01, 
+                                      beta1_prec=0.001, simplify = TRUE, beta0_remove=FALSE,
+                                      events_only = FALSE)
+{
+  if (!requireNamespace("INLA", quietly = TRUE)) {
+    stop('INLA needed for this function to work. Use install.packages("INLA", repos=c(getOption("repos"), INLA="https://inla.r-inla-download.org/R/stable"), dep=TRUE).',
+         call. = FALSE)
+  }
+  
+  
+  coal_times1 <- phy1$coal_times
+  coal_times2 <- phy2$coal_times
+  n_sampled1 <- phy1$n_sampled
+  n_sampled2 <- phy2$n_sampled
+  samp_times1 <- phy1$samp_times
+  samp_times2 <- phy2$samp_times
+  
+  grid <- seq(min(c(samp_times1,samp_times2)), max(c(coal_times1,coal_times2)), length.out = lengthout+1)
+  
+  #if (is.null(n_sampled))
+  #  n_sampled <- rep(1, length(samp_times))
+  
+  coal_data1 <- coal_stats(grid = grid, samp_times = samp_times1, n_sampled = n_sampled1,
+                           coal_times = coal_times1)
+  if (simplify){coal_data1 <- with(coal_data1, condense_stats(time=time, event=event, E=E))}
+  coal_data1 <- identify_off_grid(coal_data1,samp_times1,coal_times1)
+  
+  coal_data2 <- coal_stats(grid = grid, samp_times = samp_times2, n_sampled = n_sampled2,
+                           coal_times = coal_times2)
+  if (simplify){coal_data2 <- with(coal_data2, condense_stats(time=time, event=event, E=E))}
+  coal_data2 <- identify_off_grid(coal_data2,samp_times2,coal_times2)
+  
+  
+  
+  #simplify is used to avoid duplicate in time 
+  
+  
+  hyper <- list(prec = list(param = c(prec_alpha, prec_beta)))
+  
+  
+  
+  data <- joint_coal_stats(coal_data1 = coal_data1, coal_data2 = coal_data2)
+  
+  
+  if (beta0_remove){
+    formula <- Y ~ -1 + 
+      f(time, model="rw1", hyper = hyper, constr = FALSE) +
+      f(time2,copy="time", fixed=FALSE, param=c(0, beta1_prec))
+  } else {
+    formula <- Y ~ -1 + beta0 +
+      f(time, model="rw1", hyper = hyper, constr = FALSE) +
+      f(time2,copy="time", fixed=FALSE, param=c(0, beta1_prec))
+  }
+  
+  family <- c("poisson", "poisson")
+  
+  lc_many <- NULL
+  
+  mod <- INLA::inla(formula, family = family, data = data,
+                    lincomb = lc_many, offset = data$E_log,
+                    control.predictor = list(compute=TRUE),
+                    control.inla = list(lincomb.derived.only=FALSE))
+  
+  return(list(result = mod, data = data, grid = grid, x = coal_data1$time))
+}
+
+
+
+identify_off_grid <- function(coal_data,samp_times,coal_times)
+{ 
+  if (samp_times[1]>0){
+    id <- which.min(abs(coal_data$time-samp_times[1]))
+    coal_data$event[1:(id-1)] <- NA
+  }
+  if (coal_times[length(coal_times)]<coal_data$time[length(coal_data$time)]){
+    id <- which.min(abs(coal_data$time-coal_times[length(coal_times)])) #Note that there are double points in $time, that's why id+1
+    coal_data$event[(id+1):length(coal_data$event)] <- NA
+  }
+  return(coal_data)
+}
+
+
+joint_coal_stats <- function(coal_data1, coal_data2)
+{
+  n1 <- length(coal_data1$time) #Here are the midpts 
+  n2 <- length(coal_data2$time) #
+  beta0 <- c(rep(0, n1), rep(1, n2))
+  E_log <- c(coal_data1$E_log, coal_data2$E_log) #samp_data$E_log does not include NA in the pref_samp, so I am not modifying it here either
+  Y <- matrix(c(coal_data1$event, rep(NA, n2), rep(NA, n1), coal_data2$event),
+              nrow = n1 + n2, byrow = FALSE)
+  #Need to correct Y for the parts of the grid that need to be eccluded
+  #Note, there are some parts of Y where they are both NAs
+  w <- c(rep(1, n1), rep(1, n2))  #what does the w do? I think that takes into account for the fact that one is at the numerator,
+  #the other one at the numerator. 
+  
+  #we are not correcting the time, i.e. there are times also to part that are not defined
+  time  <- c(coal_data1$time, rep(NA, n2))
+  time2 <- c(rep(NA, n1), coal_data2$time)
+  
+  return(list(Y = Y, beta0 = beta0, time = time, time2 = time2, w = w, E_log = E_log))
+}
+
+
