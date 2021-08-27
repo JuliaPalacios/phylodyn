@@ -48,6 +48,8 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
 
 13. [Simulation](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Simulation.Rmd): A short example of simulation of genealogies under isochronous and heterochronous sampling schemes, illustraring methodology in [2] and [5].
 
+14. [Selection](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Parameteric_growth_comparison.Rmd): An application for the hierarchical model described in an upcoming draft to detect different growth rates of the effective population size.
+
 
 ## Datasets
 
