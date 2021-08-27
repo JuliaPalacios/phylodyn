@@ -1,0 +1,116 @@
+---
+title: "Adaptive_preferential_sampling_with_simulated_data"
+author: "Lorenzo Cappello"
+date: "August 26, 2021"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Adaptive_preferential_sampling_with_simulated_data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+This vignette complements Section 4.1.2 of the paper "Statistical challenges in trackingthe evolution of SARS-CoV-2" by 
+Lorenzo Cappello, Jaehee Kim, Sifan Liu and Julia A. Palacios.
+
+It mimics the analysis done in that section. Data used the case study in that section cannot be made publicly available by the authors but are accessible in the GISAID database. 
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+Install the R package phylodyn at https://github.com/JuliaPalacios/phylodyn if you have it yet.
+Then load it.
+
+If you simulate the genealogies, you will also need R packages ape (CRAN) and adapref (available for download at https://github.com/lorenzocapp/adapref)
+
+```{r setup}
+library(phylodyn)
+library(ape)
+```
+
+
+We fix, sample size n, parameters of the semiparameteric model( alpha, and beta), and the two effective sample size trajectories. 
+In this simulation study we assume that the model is correctly specified.
+
+```{r}
+
+n <- 200
+alpha <- 1
+beta <- 2
+
+set.seed(123)
+
+
+covid_exp1<-function(t){
+  result=rep(0,length(t))
+  result[t<=0.35]<-10
+  result[t>0.35 & t<0.4]<-9.999987e+14*exp(-92.1034*t[t>0.35 & t<0.4]) #50 times smaller
+  result[t>=0.4]<-0.1
+  return(result)
+}
+
+
+covid_exp2<-function(t){
+    result=rep(0,length(t))
+    result[t<=0.35]<-10
+    result[t>0.35 & t<0.4]<-9.999987e+14*exp(-92.1034*t[t>0.35 & t<0.4]) #50 times smaller
+    result[t>=0.4]<-0.1
+    return(alpha*result^beta)
+}
+```
+
+We now sample the sampling times. Here we assume that the sampling times are sampled at random. Coeff is the sampling rate of the Poisson process sampling the times. In order to sample the times, we need the sampsim_thin function in the adapref package (available for download at https://github.com/lorenzocapp/adapref)
+```{r}
+ coeff=n/0.4
+  sampling_traj<-function(t){
+    result=rep(0,length(t))
+    result<-1
+    return(result*coeff)}
+  
+  samp_times1<-c(0,adapref::sampsim_thin(max.n=n-2,traj=sampling_traj,xlim=c(0,3))[-n+1])
+  n_sampled1 <- c(2,rep(1,n-2)) # simulation like this it will be like this.
+  samp_times2<-c(0,adapref::sampsim_thin(max.n=n-2,traj=sampling_traj,xlim=c(0,3))[-n+1])
+  n_sampled2 <- c(2,rep(1,n-2)) # simulation like this it will be like this.
+
+```
+
+
+We now sample coalescent times, and the two corresponding genealogy
+Sampling these quantities is done via standard function of phylodyn (see other vignettes for package usage)
+
+
+```{r}
+
+simulation1<-coalsim(samp_times=samp_times1-min(samp_times1),n=n_sampled1,traj=covid_exp1)
+tree1<-sample_genealogy(simulation1)
+tree1<-ape::read.tree(text=tree1$Newick)
+plot(tree1,show.tip.label = FALSE)
+
+simulation2<-coalsim(samp_times2-min(samp_times2),n_sampled2, traj = covid_exp2)
+tree2<-sample_genealogy(simulation2)
+tree2<-ape::read.tree(text=tree2$Newick)
+plot(tree2,show.tip.label = FALSE)
+```
+
+
+We run the hierarchical model. We run alternating tree1 and tree2, so we have an easy way to plot Ne(t) using existing functions of phylodyn.
+
+```{r}
+
+res<-BNPR_sel(tree1,tree2,samp_times1,samp_times2,lengthout=100)
+res2<-BNPR_sel(tree2,tree1,samp_times2,samp_times1,lengthout=100)
+
+```
+
+Now, we plot the posterior of N_e(t) (first and second group), and of the two parameters
+```{r}
+par(mfrow=c(3,4), mar=c(2,2.5,1.5,1),oma=c(2,2,0,0),pty="s")
+plot_BNPR(res,heatmaps=FALSE,heatmap_labels = FALSE,ylab="Ne(t)",main="",ylim=c(0.0005,50000),xlim=c(0.5,0))
+plot_BNPR(res2,heatmaps=FALSE,heatmap_labels = FALSE,ylab="Ne(t)",main="",ylim=c(0.0005,50000),xlim=c(0.5,0))
+plot(res$beta0post,type="l",lwd=3,main="Posterior log 1/alpha")
+plot(res$beta1post,type="l",lwd=3,,main="Posterior beta")
+
+```
