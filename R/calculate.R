@@ -98,6 +98,7 @@ BNPR <- function(data, lengthout = 100, pref=FALSE, prec_alpha=0.01,
                                     quant0.025 = exp(-`0.975quant`),
                                     quant0.5 = exp(-`0.5quant`),
                                     quant0.975 = exp(-`0.025quant`)))
+ 
   
   if (derivative)
   {
@@ -409,7 +410,7 @@ infer_coal_samp <- function(samp_times, coal_times, n_sampled=NULL, fns = NULL,
   {
     data <- with(coal_data, data.frame(y = event, time = time, E_log = E_log))
     
-    formula <- y ~ -1 + f(time, model="rw1", hyper = hyper, constr = FALSE)
+    formula <- y ~ -1 + f(time, model="rw1", hyper = hyper, constr = FALSE, scale.model = TRUE)
     family <- "poisson"
   }
   else if (use_samp)
