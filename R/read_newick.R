@@ -48,33 +48,55 @@ summarize_phylo2 <- function(phy, backwards = TRUE)
               coal_times = coal_times))
 }
 
-branching_sampling_times <- function(phy)
-{
-  phy = ape::new2old.phylo(phy)
-
-  if (class(phy) != "phylo")
-    stop("object \"phy\" is not of class \"phylo\"")
-
-  tmp <- as.numeric(phy$edge)
-  nb.tip <- max(tmp)
-  nb.node <- -min(tmp)
-  xx <- as.numeric(rep(NA, nb.tip + nb.node))
-  names(xx) <- as.character(c(-(1:nb.node), 1:nb.tip))
-  xx["-1"] <- 0
-
-  for (i in 2:length(xx))
-  {
-    nod <- names(xx[i])
-    ind <- which(phy$edge[, 2] == nod)
-    base <- phy$edge[ind, 1]
-    xx[i] <- xx[base] + phy$edge.length[ind]
-  }
-
-  depth <- max(xx)
-  branching_sampling_times <- depth - xx
-  
-  return(branching_sampling_times)
+branching_sampling_times<-function(tr){
+  ##Updated by Julia Sep 1, 2020. The previous function assumed internal nodes are ordered
+  if (class(tr) != "phylo")
+     stop("object \"tr\" is not of class \"phylo\"")
+  edge.mat <- tr$edge
+  n.sample <- tr$Nnode + 1
+  t.tot <- max(ape::node.depth.edgelength(tr))
+  n.t <- t.tot - ape::node.depth.edgelength(tr)
+  edge.mat <- tr$edge
+  t.dat <- data.frame(lab.1 = edge.mat[, 1], lab.2 = edge.mat[, 
+                                                              2], t.end = n.t[edge.mat[, 1]], t.start = n.t[edge.mat[, 
+                                                                                                                     2]])
+  t.dat <- t.dat[order(t.dat$lab.2), ]
+  xx <- as.numeric(rep(NA, 2*n.sample -1))
+  names(xx) <- as.character(c(-(1:(n.sample-1)), 1:n.sample))
+  xx[1:(n.sample-1)]<-rev(t.dat$t.end[((n.sample):nrow(t.dat))])
+  xx[n.sample:length(xx)]<-t.dat$t.start[1:n.sample]
+  return(xx)
 }
+
+
+# branching_sampling_times <- function(phy)
+# {
+#   phy = ape::new2old.phylo(phy)
+
+#   if (class(phy) != "phylo")
+#     stop("object \"phy\" is not of class \"phylo\"")
+
+#   tmp <- as.numeric(phy$edge)
+#   nb.tip <- max(tmp)
+#   nb.node <- -min(tmp)
+#   xx <- as.numeric(rep(NA, nb.tip + nb.node))
+#   names(xx) <- as.character(c(-(1:nb.node), 1:nb.tip))
+#   xx["-1"] <- 0
+
+#   for (i in 2:length(xx))
+#   {
+#     nod <- names(xx[i])
+#     ind <- which(phy$edge[, 2] == nod)
+#     base <- phy$edge[ind, 1]
+#     xx[i] <- xx[base] + phy$edge.length[ind]
+#   }
+
+#   depth <- max(xx)
+#   branching_sampling_times <- depth - xx
+  
+#   return(branching_sampling_times)
+# }
+
 
 heterochronous_gp_stat <- function(phy, tol=0.0)
 {
