@@ -410,7 +410,7 @@ infer_coal_samp <- function(samp_times, coal_times, n_sampled=NULL, fns = NULL,
   {
     data <- with(coal_data, data.frame(y = event, time = time, E_log = E_log))
     
-    formula <- y ~ -1 + f(time, model="rw1", hyper = hyper, constr = TRUE, scale.model = TRUE)
+    formula <- y ~ -1 + f(time, model="rw1", hyper = hyper, constr = FALSE, scale.model = TRUE)
     family <- "poisson"
   }
   else if (use_samp)
