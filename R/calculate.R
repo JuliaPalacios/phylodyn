@@ -45,6 +45,7 @@ gen_summary = function(coal_times, samp_times, n_sampled)
 #'   log-derivative.
 #' @param forward logical whether to use the finite difference approximations of
 #'   the log-derivative as a forward or backward derivative.
+#' @param grid it gives the opportunity to evaluate BNPR on a prespecified grid
 #'   
 #' @return Phylodynamic reconstruction of effective population size at grid 
 #'   points. \code{result} contains the INLA output, \code{data} contains the 
@@ -65,7 +66,7 @@ gen_summary = function(coal_times, samp_times, n_sampled)
 #' }
 BNPR <- function(data, lengthout = 100, pref=FALSE, prec_alpha=0.01,
                  prec_beta=0.01, beta1_prec = 0.001, fns = NULL, log_fns = TRUE,
-                 simplify = TRUE, derivative = FALSE, forward = TRUE)
+                 simplify = TRUE, derivative = FALSE, forward = TRUE,grid=NULL)
 {
   if (class(data) == "phylo")
   {
@@ -81,7 +82,7 @@ BNPR <- function(data, lengthout = 100, pref=FALSE, prec_alpha=0.01,
                             n_sampled = phy$n_sampled, fns = fns, lengthout = lengthout,
                             prec_alpha = prec_alpha, prec_beta = prec_beta,
                             beta1_prec = beta1_prec, use_samp = pref, log_fns = log_fns,
-                            simplify = simplify, derivative = derivative)
+                            simplify = simplify, derivative = derivative,grid=grid)
   
   result$samp_times <- phy$samp_times
   result$n_sampled  <- phy$n_sampled
@@ -380,7 +381,7 @@ infer_coal_samp <- function(samp_times, coal_times, n_sampled=NULL, fns = NULL,
                             lengthout=100, prec_alpha=0.01, prec_beta=0.01,
                             beta1_prec=0.001, use_samp = FALSE, log_fns = TRUE,
                             simplify = FALSE, events_only = FALSE,
-                            derivative = FALSE)
+                            derivative = FALSE,grid=NULL)
 {
   if (!requireNamespace("INLA", quietly = TRUE)) {
     stop('INLA needed for this function to work. Use install.packages("INLA", repos=c(getOption("repos"), INLA="https://inla.r-inla-download.org/R/stable"), dep=TRUE).',
@@ -393,7 +394,8 @@ infer_coal_samp <- function(samp_times, coal_times, n_sampled=NULL, fns = NULL,
   if (max(samp_times) > max(coal_times))
     stop("Last sampling time occurs after last coalescent time")
   
-  grid <- seq(min(samp_times), max(coal_times), length.out = lengthout+1)
+  if (is.null(grid))
+    grid <- seq(min(samp_times), max(coal_times), length.out = lengthout+1)
   
   if (is.null(n_sampled))
     n_sampled <- rep(1, length(samp_times))
