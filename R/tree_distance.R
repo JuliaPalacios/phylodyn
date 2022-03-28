@@ -788,4 +788,72 @@ patch.dmat <- function(n.model, n.sim, save.dir,
 
 
 
+gen.lower.tri.ind <- function(n) {
+    ## This function generateds indices of lower triangle of a matrix of
+    #  size n. 
+    ## Input: 
+    #   n: dimension of a matrix
+    z <- sequence(n)
+    return(cbind(
+        row = unlist(lapply(2:n, function(x) x:n), use.names = FALSE),
+        col = rep(z[-length(z)], times = rev(tail(z, -1))-1)))
+}
+
+
+create.dmat.hetero <- function(all.tr.info, dist.method='l1', weighted=F) {
+    ## This function creates a distance matrix D, where the entry D[i,j]
+    #  represents the distance between i-th and j-th trees represented by
+    #  a F-matrix in the Fmat.list.
+    #
+    ## Input: 
+    #       all.Fmat: List of F-matrix for trees of interest. 
+    #       dist.method: 'l1' = sum_{ij}(abs(F1[i,j] - F2[i,j]))
+    #                    'l2' = sqrt(sum_{ij}(F1[i,j] - F2[i,j])^2)
+    #       weighted: T/F, weighted by time interval when computing dist.pairwise
+    ## Output:
+    #       Dmat: distance matrix with entries Dmax[i,j] denotes distance
+    #             between tree i and tree j (represented as F-matrix). 
+    #             By definition, this is a symmetric matrix with zero diagonal.
+    
+    library(doParallel)
+
+    n.tr <- length(all.tr.info)
+    Dmat <- matrix(NA, nrow=n.tr, ncol=n.tr)
+    diag(Dmat) <- 0
+    comp.ind <- gen.lower.tri.ind(n.tr)
+    
+    n.blk <- dim(comp.ind)[1] / 50
+    stopifnot(dim(comp.ind)[1] %% 50 == 0)
+    
+    # There're are in total n.tot=n.model*n.sim number of trees and 
+    # n.tot*(n.tot-1)/2 number of comparisons to be done.
+    # When n.sim is large, faster to somewhat parallelize but need to be careful
+    # cause parallelizing every single one will actually slow it down.
+    # Here, divide into 50 blocks and parallelize those 50 iterations. 
+    
+    cl <- makeCluster(detectCores(), outfile='log.txt')
+    registerDoParallel(cl)
+    tmp.dist <- foreach(j = 1:50,
+                        .export=c('dist.pairwise', 'insert.event', 
+                                  'create.weight.mat.hetero'),
+                        .combine='c') %dopar% {
+        curr.ind <- (1 + (j-1)*n.blk):(j*n.blk)
+        sapply(curr.ind,
+               function(k) dist.pairwise(tr.dat.1=all.tr.info[[comp.ind[k, 1]]],
+                                         tr.dat.2=all.tr.info[[comp.ind[k, 2]]],
+                                         dist.method=dist.method,
+                                         weighted=weighted))
+    }
+    stopCluster(cl)
+    
+    Dmat[comp.ind] <- tmp.dist
+    Dmat <- t(Dmat)
+    Dmat[lower.tri(Dmat)] <- tmp.dist
+    
+    stopifnot(!any(is.na(Dmat)))
+    
+    return(Dmat)
+}
+
+
 
