@@ -11,8 +11,8 @@ This vignette displays a simulation study designed to approximate an exponential
 We start by loading the required packages.
 
 ```{r message=FALSE}
-library(phylodyn)
-library("rPython")
+library("phylodyn")
+library("reticulate")
 library("phangorn")
 library("mvtnorm")
 library("ape")
@@ -21,11 +21,13 @@ library("truncnorm")
 
 Load python function file
 ```{r}
-path <- paste(system.file(package="phylodyn"), "python/Fsamp_hTDv2.py", sep="/")
-python.load(path)
+path <- paste(system.file(package="phylodyn"), "python/Fsamp_hTDv3.py", sep="/")
+source_python(path)
 ```
 
 We first read the observed data in fasta format.
+
+In read fasta you have to put your own FASTA file
 
 ```{r}
 library(seqinr)
@@ -108,12 +110,14 @@ set.seed(123)
 input_tree<-c()
 name_samp<-c()
 fact<-1
-initial<-initial_tajima_het(datatajima,name="exp70",mu,npoints=49,fact=1,alpha=0.2,samp_times,ntab,input_tree,name_samp)
+initial<-initial_tajima_het(datatajima,name="exp70",mu,npoints=49,fact=1,alpha=0.2,samp_times,n,input_tree,name_samp)
+
 ```
 
 Then we initialize the MCMC states
 ```{r}
 setupchain<-initial_MCMC_het(initial,ngrid=50,mu,ntab,alpha=.1,fact,Nate=100,initial$times,samp_times)
+
 ```
 
 Set inputs variables for the MCMC (eps:step size HMC, Z1 and sigma see Cappello et al. 2020 Section 4,NSim: lenght of the MC chain)
@@ -152,13 +156,13 @@ for (j in 1:Nsim){
   acp1<-acp1+thetaup$acp
 
   #2) Local-Global update for the coalescent times via a truncated normal (Cappello et al. 2020)
-  timesup<-updateTimes_hetLocal(n,oldsuff,currentval,times_list,theta_list,prec_list,probs_list,const=1,mu,samp_times,Z1,sigma)
+  timesup<-updateTimes_hetLocal(n,oldsuff,currentval,times_list,theta_list,prec_list,probs_list,const=1,samp_times,Z1,sigma)
   currentval<-timesup$currentval;theta_list<-timesup$theta_list; prec_list<-timesup$prec_list; probs_list<-timesup$probs_list; times_list<-timesup$times_list
   timesup$acp
   acp2<-acp2+timesup$acp
 
   #3) Local update for the ranked tree shapes (Palacios et al. 2019, Cappello et al. 2020)
-  FMatupMarkov_FREE<-updateFmat_Markov_FREE_het(currentval,probs_list,const=1,mu,oldsuff,n)
+  FMatupMarkov_FREE<-updateFmat_Markov_FREE_het(currentval,probs_list,const=1,oldsuff,n)
   currentval<-FMatupMarkov_FREE$currentval; probs_list<-FMatupMarkov_FREE$probs_list;
   acp3<-acp3+FMatupMarkov_FREE$acp
 

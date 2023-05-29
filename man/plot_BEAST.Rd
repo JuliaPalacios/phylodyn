@@ -4,11 +4,25 @@
 \alias{plot_BEAST}
 \title{Plot trajectory estimate and credible intervals}
 \usage{
-plot_BEAST(midpts, med, up, low, cutoff = NULL, ylim = NULL,
-  xlab = "Time", ylab = "Effective Population Size", axlabs = NULL,
-  samp_times = NULL, n_sampled = NULL, nbreaks = 40, med_col = rgb(0.33,
-  0.484, 0.828), cred_col = rgb(0.33, 0.484, 0.828, 0.4), heatmap_width = 7,
-  heatmap_legend_cex = 1, ...)
+plot_BEAST(
+  midpts,
+  med,
+  up,
+  low,
+  cutoff = NULL,
+  ylim = NULL,
+  xlab = "Time",
+  ylab = "Effective Population Size",
+  axlabs = NULL,
+  samp_times = NULL,
+  n_sampled = NULL,
+  nbreaks = 40,
+  med_col = rgb(0.33, 0.484, 0.828),
+  cred_col = rgb(0.33, 0.484, 0.828, 0.4),
+  heatmap_width = 7,
+  heatmap_legend_cex = 1,
+  ...
+)
 }
 \arguments{
 \item{midpts}{numeric vector of x-values at which to plot estimate and credible interval bounds.}
@@ -48,4 +62,3 @@ plot_BEAST(midpts, med, up, low, cutoff = NULL, ylim = NULL,
 \description{
 Plot trajectory estimate and credible intervals
 }
-

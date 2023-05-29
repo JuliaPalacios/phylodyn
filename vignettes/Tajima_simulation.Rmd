@@ -1,5 +1,5 @@
 ---
-title: "Tajima inference from a simulation"
+title: "Simulated data - isochronous and heterochronous"
 author: "Julia Palacios"
 date: "April 13, 2018"
 output: rmarkdown::html_vignette
@@ -18,7 +18,7 @@ gene = coalsim(samp_times = samp_times, n_sampled = n_sampled, traj = traj, lowe
 ```{r}
 library("phylodyn")
 library("ape")
-library("rPython")
+library("reticulate")
 set.seed(100+8)
 n<-10
 
@@ -48,20 +48,7 @@ We now simulate mutations along the tree to generate a dataset according to the 
 data1<-simulate_data(40,tree1)
 nrow(data1)
 ```
-
-initial<-initial_tajima(data1,name="OldExp_10",mu=40,npoints=49,fact=1)
-
-
-#intial MCMC
-setupchain<-initial_MCMC(initial,ngrid=50,mu=40,n=10,alpha=.1,fact=1)
-acp1<-0;acp2<-0;acp3<-0; acp2_t<-0
-currentval<-setupchain$currentval
-theta_list<-setupchain$theta_list
-prec_list<-setupchain$prec_list
-probs_list<-setupchain$probs_list
-times_list<-setupchain$times_list
-F_list<-setupchain$F_list
-
+```{r}
 
 constant<-function(x){
   return (rep(1,length(x)))

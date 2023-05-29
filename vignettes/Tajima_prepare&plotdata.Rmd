@@ -8,8 +8,8 @@ output: html_document
 
 
 ```{r}
-library(phylodyn)
-library(seqinr)
+library("phylodyn")
+library("seqinr")
 library("igraph")
 
 
@@ -26,8 +26,8 @@ seq_mat<-seq_mat[,-id_0]
 ```
 
 
-#Extract sequence names and sampling times from the fasta label. Sequeences 
-In this example we <sequence name>_<sampling time>
+Extract sequence names and sampling times from the fasta label. Sequences 
+In this example we have <sequence name>_<sampling time>
 ```{r,}
 seq_names<-c()
 samp_times<-c()
@@ -68,12 +68,18 @@ data_taj<-as.matrix(data_taj[-1,])
 Compute the perfect phylogeny and plot it.
 
 ```{r,}
-oldsuff<-tajima_perphylo(data_taj)
+n <- as.vector(table(samp_times))
+samp_times <- unique(samp_times)
+input_tree <- c()
+initial<-initial_tajima_het(data_taj,name="trial",mu=1,npoints=49,fact=1,alpha=0.2,samp_times,n,input_tree,name_samp)
+oldsuff<-pp_heterochronous(n_sampled=n,initial$oldsuff,initial$times$addtimes)
+
+#oldsuff<-tajima_perphylo(data_taj)
 #Plot perfect phylogeny
 mutations<-rep("AAAA",length(oldsuff$mylist))
 for (j in 1:length(oldsuff$mylist)){
   mutations[j]<-paste0(oldsuff$mylist[[j]]$y,collapse="-")
 }
-graph_gene_tree_mut(oldsuff$nodes,mutations)
+graph_gene_tree2(oldsuff$nodes,mutations)
 ```
 

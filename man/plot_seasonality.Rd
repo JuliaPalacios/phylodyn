@@ -4,80 +4,66 @@
 \alias{plot_seasonality}
 \title{Plot Seasonality}
 \usage{
-plot_seasonality(BEAST_out, zero_date, start = 0, years = NULL,
-  period = 1, ylim = NULL, nbreaks = 40, lty = 1, lwd = 2,
-  col_years = "gray", col_median = "black", main = "", axlabs = NULL,
-  xlab = "Time", xmarline = 1, ylab = "Effective Population Size",
-  log_y = TRUE, samp_times = NULL, n_sampled = NULL, heatmaps = TRUE,
-  heatmap_labels = TRUE, heatmap_labels_side = "right", heatmap_width = 7,
-  legend = NULL, yscale = 1, ...)
+plot_seasonality(
+  BEAST_out,
+  zero_date,
+  start = 0,
+  years = NULL,
+  period = 1,
+  ylim = NULL,
+  nbreaks = 40,
+  lty = 1,
+  lwd = 2,
+  col_years = "gray",
+  col_median = "black",
+  main = "",
+  axlabs = NULL,
+  xlab = "Time",
+  xmarline = 1,
+  ylab = "Effective Population Size",
+  log_y = TRUE,
+  samp_times = NULL,
+  n_sampled = NULL,
+  heatmaps = TRUE,
+  heatmap_labels = TRUE,
+  heatmap_labels_side = "right",
+  heatmap_width = 7,
+  legend = NULL,
+  yscale = 1,
+  ...
+)
 
-plot_seasonality(BEAST_out, zero_date, start = 0, years = NULL,
-  period = 1, ylim = NULL, nbreaks = 40, lty = 1, lwd = 2,
-  col_years = "gray", col_median = "black", main = "", axlabs = NULL,
-  xlab = "Time", xmarline = 1, ylab = "Effective Population Size",
-  log_y = TRUE, samp_times = NULL, n_sampled = NULL, heatmaps = TRUE,
-  heatmap_labels = TRUE, heatmap_labels_side = "right", heatmap_width = 7,
-  legend = NULL, yscale = 1, ...)
+plot_seasonality(
+  BEAST_out,
+  zero_date,
+  start = 0,
+  years = NULL,
+  period = 1,
+  ylim = NULL,
+  nbreaks = 40,
+  lty = 1,
+  lwd = 2,
+  col_years = "gray",
+  col_median = "black",
+  main = "",
+  axlabs = NULL,
+  xlab = "Time",
+  xmarline = 1,
+  ylab = "Effective Population Size",
+  log_y = TRUE,
+  samp_times = NULL,
+  n_sampled = NULL,
+  heatmaps = TRUE,
+  heatmap_labels = TRUE,
+  heatmap_labels_side = "right",
+  heatmap_width = 7,
+  legend = NULL,
+  yscale = 1,
+  ...
+)
 }
 \arguments{
 \item{BEAST_out}{list containing `midpts`, `medianEffPop`, `q975EffPop`, and `q025EffPop`.}
-
-\item{zero_date}{numeric which time to present as 0 on graph.}
-
-\item{start}{numeric when to start displaying data.}
-
-\item{years}{numeric how many years to count back in time.}
-
-\item{period}{numeric how long of a period is a "year".}
-
-\item{ylim}{numeric y-axis interval.}
-
-\item{nbreaks}{integer number of bins for sampling heatmap.}
-
-\item{lty}{numeric line type for the estimated trajectory paths.}
-
-\item{lwd}{numeric line width for the estimated trajectory paths.}
-
-\item{col_years}{color of year paths.}
-
-\item{col_median}{color of the median estimate.}
-
-\item{main}{character main plot title.}
-
-\item{axlabs}{character vector x-axis labels.}
-
-\item{xlab}{character x-axis label.}
-
-\item{xmarline}{numeric if not using default x-axis labels, how far to put
-the labels from the axis.}
-
-\item{ylab}{character y-axis label.}
-
-\item{log_y}{logical whether to log-scale the y-axis.}
-
-\item{samp_times}{}
-
-\item{n_sampled}{}
-
-\item{heatmaps}{boolean whether to display sampling and coalescent heatmaps.}
-
-\item{heatmap_labels}{boolean whether to display labels on heatmaps.}
-
-\item{heatmap_labels_side}{string which side of plot to display heatmaps.}
-
-\item{heatmap_width}{numeric how wide heatmaps should be.}
-
-\item{legend}{character legend text. The defauly, NULL, disables.}
-
-\item{yscale}{numeric scaling applied to all effective population
-calculations.}
-
-\item{...}{additional arguments to be passed onto plot().}
-
-\item{BNPR_out}{output of BNPR or BNPR_PS.}
-
-\item{col_mean}{color of mean path.}
 
 \item{zero_date}{numeric date (in decimal years) representing `t=0` in `BEAST_out`}
 
@@ -97,6 +83,8 @@ calculations.}
 
 \item{col_years}{color of individual trajectory}
 
+\item{col_median}{color of the median estimate.}
+
 \item{main}{character main figure title.}
 
 \item{axlabs}{}
@@ -108,6 +96,10 @@ calculations.}
 \item{ylab}{}
 
 \item{log_y}{}
+
+\item{samp_times}{}
+
+\item{n_sampled}{}
 
 \item{heatmaps}{}
 
@@ -122,10 +114,13 @@ calculations.}
 \item{yscale}{}
 
 \item{...}{}
+
+\item{BNPR_out}{output of BNPR or BNPR_PS.}
+
+\item{col_mean}{color of mean path.}
 }
 \description{
 Plot Seasonality
 
 Plot seasonal overlays
 }
-

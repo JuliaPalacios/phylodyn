@@ -104,20 +104,19 @@ graph_gene_tree<-function(suff){
   edges<-cbind(new1[,2],new1[,1])
   g1<-graph_from_edgelist(edges)
   g2<-layout_as_tree(g1, root = 1, circular = FALSE, mode = "out", flip.y = TRUE)
-  plot(g1,layout=g2,edge.arrow.size=.2,vertex.color="lightblue", vertex.label.cex=1, vertex.label=descendants,
+  plot(g1,layout=g2,edge.arrow.size=.2,vertex.color="lightblue", vertex.label.cex=.7, vertex.label=descendants,
        edge.label=suff[,4])
 }
 
 
-#' Plot perfect phylogeny
+#' Plot the perfect phylogeny along with a vector of mutations. Vignette Tajima_prepare&plotdata provides details on how to use it
 #' 
-#' @param suff is the output of tajima_perfect phylogeny
-#' @param mutations is a vector recording the mutation on each edge of the perfect phylogeny
+#' @param suff the nodes object of a perfect phylogeny
+#' @param mutations list of mutations to add in the edges for plotting
 #'   
-#' @return plot automotically the perfect phylogeny
 #' @export
 
-graph_gene_tree_mut<-function(suff,mutations){
+graph_gene_tree2<-function(suff,mutations){
   #suff<-oldsuff$nodes
   labels<-sort(unique(c(suff[,1],suff[,2])))
   new1<-suff[,1:2]
@@ -134,11 +133,12 @@ graph_gene_tree_mut<-function(suff,mutations){
     }
   }
   
+  library("igraph")
   edges<-cbind(new1[,2],new1[,1])
   g1<-graph_from_edgelist(edges)
   g2<-layout_as_tree(g1, root = 1, circular = FALSE, mode = "out", flip.y = TRUE)
-  plot(g1,layout=g2,edge.arrow.size=.2,vertex.color="lightblue", vertex.label.cex=1, vertex.label=descendants,
-       edge.label=mutations,edge.label.cex=0.9,edge.label.color="red")
+  plot(g1,layout=g2,edge.arrow.size=.2,vertex.color="lightblue", vertex.label.cex=.7, vertex.label=descendants,
+       edge.label=mutations,edge.label.cex=.6,edge.label.color="red",vertex.size=6)
 }
 
 
@@ -268,47 +268,6 @@ simulate_data_het<-function(mu,tree,SimTimeHet){
 ##### Perfect phylogeny heterochronous ##### ####
 ##################################################
 
-
-#' Prepare the perfect phylogeny to be used for plotting (not the one used in the actual code)
-#' 
-#' @param data in the Tajima format (rows are segrating sites and columns are the sequence)
-#'   
-#' @return perfect phylogeny 
-#' @export
-
-tajima_perphylo<-function(data){
-  oldsuff<-sufficient_stats_het(data)
-  nodes=oldsuff$nodes
-  mylist=oldsuff$mylist
-  listnode<-unique(c(nodes[,1],nodes[,2]))
-  leafnodes<-nodes[nodes[,5]==1,1]
-  collap<-nodes[nodes[,4]>1,1]
-  if (length(collap)>=1){
-    for (i in 1:length(collap)){
-      newline<-c()
-      idcollap<-which(nodes[,1]==collap[i])
-      for (j in 1:(nodes[idcollap,4]-1)){
-        newnode<-max(listnode)+1
-        newline<-c(newline, c(newnode,nodes[idcollap,2:3],1,nodes[idcollap,5]))
-        listnode<-c(listnode,newnode)
-        newlist<-list()
-        newlist$x<-nodes[idcollap,3]
-        newlist$y<-mylist[[idcollap]]$y[1]
-        mylist[[idcollap]]$y<-mylist[[idcollap]]$y[-1]
-        mylist[[length(mylist)+1]]<-newlist
-      }
-      nodes[idcollap,4]=1
-      newmat<-matrix(newline,ncol=5,byrow=TRUE)
-      nodes<-rbind(nodes,newmat)
-    }
-  }
-  oldsuff$nodes<-nodes
-  oldsuff$mylist<-mylist
-  return(oldsuff)
-}
-
-
-
 sufficient_stats_het<-function(data){
   #Update Dec 2017
   #This is the old function needed for 
@@ -331,9 +290,10 @@ sufficient_stats_het<-function(data){
   #(3)For each cell
   for (j in 1:n){
     haplotypes<-c(haplotypes,paste0(O[j,],collapse="")) #L:all the haplotypes from the incidence matrix + a vector of 0s (root? which we then remove)
+    if (l>1){
     for (i in 2:l){
       if (O[j,i]==1){Lmat[j,i]<-max(Index[j,1:(i-1)])} #L: Lmat is the closest mutations to the left of the one you are activating
-    }
+    }}
   }
   #correct for multiple haplotypes
   sort.hap<-sort(haplotypes[-1],index.return=T) #L:note: sort.hap
@@ -386,7 +346,12 @@ sufficient_stats_het<-function(data){
       ind2<-indic_offspring[offspringsize==k]
       #those where ind2 is 0
       if (sum(ind2==0)>0){
-        lab1<-which(leaves %in% offspring[offspringsize==k & indic_offspring==0])
+        #lab1<-which(leaves %in% offspring[offspringsize==k & indic_offspring==0]) #This were coming in an arbitrary order, whereas I need them to be connected
+        lab1 <- c()
+        type.offsprings.labels <- offspring[offspringsize==k & indic_offspring==0]
+        for (tt in 1:length(type.offsprings.labels)){
+          lab1 <- c(lab1,which(leaves %in% type.offsprings.labels[tt]))
+        }
         mylist[[i]]<-list(x=sum(offspringsize==k & indic_offspring==0),y=card[offspring[offspringsize==k & indic_offspring==0]],z=lab1) 
         labSAVE<-c(labSAVE,lab1)
         famsize<-c(famsize,k)
@@ -441,7 +406,7 @@ sufficient_stats_het<-function(data){
       #I am not sure I actually need this, actually yes! It is needed
       suff$nodes<-rbind(suff$nodes,c(max(suff$nodes[,1])+1,0,1,n-tot,1))
       where<-nrow(suff$nodes)
-      suff$mylist[[where]]<-list(x=n-tot,y=rep(0,n-tot))
+      suff$mylist[[where]]<-list(x=n-tot,y=rep(0,n-tot),z=labADD)
     }
   }
   ##I need to make sure everything adds up. If something is off, I need
@@ -483,7 +448,7 @@ sufficient_stats_het<-function(data){
 pp_heterochronous<-function(n_sampled,oldsuff,AddTime){
   #Perfect phylogeny augmented and conditional on the sampling times 
   #create oldsuff function that separates nodes from different sampling groups. 
-  oldsuff<-undo_twin_nodes(oldsuff,n_sampled)
+  oldsuff<-undo_twin_nonpermutable_nodes(oldsuff,n_sampled)
   MaxNodeLab<-max(oldsuff$nodes[,c(1,2)])
   samp_group<-rep(seq(1,length(n_sampled)),n_sampled)
   
@@ -576,43 +541,63 @@ pp_heterochronous<-function(n_sampled,oldsuff,AddTime){
   oldsuff$nodes<-cbind(oldsuff$nodes,column6,column7)
   colnames(oldsuff$nodes)<-NULL
   rownames(oldsuff$nodes)<-NULL
+  #Integer transformations for Python
+  mode(oldsuff$nodes) <- 'integer'
+  for (i in 1:length(oldsuff$mylist)){
+    mode(oldsuff$mylist[[i]]$x) <- 'integer'
+    mode(oldsuff$mylist[[i]]$y) <- 'integer'
+    mode(oldsuff$mylist[[i]]$z) <- 'integer'
+  }
   
   return(oldsuff)
 }
 
-undo_twin_nodes<-function(oldsuff,n_sampled){
+undo_twin_nonpermutable_nodes<-function(oldsuff,n_sampled){
   
   #Function that remove all the twin nodes before starting to crete the final PP
   
   MaxNodeLab<-max(oldsuff$nodes[,c(1,2)])
   samp_group<-rep(seq(1,length(n_sampled)),n_sampled)
   
-  id_twins<-which(oldsuff$nodes[,3]>1 & oldsuff$nodes[,4]>1)
-  
-  for ( i in  id_twins){
-    qt<-oldsuff$nodes[i,4]
-    node_size<-oldsuff$nodes[i,3]
-    for (j in 1:(qt-1)){
-      #create a new node
-      newline<-oldsuff$nodes[i,]
-      newline[1]<-MaxNodeLab+1
-      MaxNodeLab<-MaxNodeLab+1
-      newline[4]<-1
-      oldsuff$nodes<-rbind(oldsuff$nodes,newline)
-      #update the old line nodes
-      oldsuff$nodes[i,4]<-oldsuff$nodes[i,4]-1
-      #create new Mylist entry
-      entry<-dim(oldsuff$nodes)[1]
-      oldsuff$mylist[[entry]]<-list()
-      oldsuff$mylist[[entry]]$x<-1
-      oldsuff$mylist[[entry]]$y<-oldsuff$mylist[[(i)]]$y[1] #it is one because I am going to remove one at a time
-      oldsuff$mylist[[entry]]$z<-oldsuff$mylist[[(i)]]$z[1:node_size]
-      #update the old Mylist entry
-      oldsuff$mylist[[i]]$x<-oldsuff$mylist[[i]]$x-1
-      oldsuff$mylist[[i]]$y<-oldsuff$mylist[[(i)]]$y[-1] #it is one because I am going to remove one at a time
-      oldsuff$mylist[[i]]$z<-oldsuff$mylist[[(i)]]$z[-c(seq(1,node_size))]
+  id_twins <- which(oldsuff$nodes[,3]>1 & oldsuff$nodes[,4]>1)
+
+    for ( i in  id_twins){
+    qt <- oldsuff$nodes[i,4]
+    node_size <- oldsuff$nodes[i,3]
+    # I need to check how many "permutable" nodes there are. 
+    labels.groups <- matrix(samp_group[oldsuff$mylist[[i]]$z],byrow=T,ncol=node_size)
+    labels.samples <- matrix(oldsuff$mylist[[i]]$z,byrow=T,ncol=node_size)
+    permutable <- uniquecombs(labels.groups)
+    howmany <- attr(permutable,"index")
+    #permutable <- matrix(uniquecombs(labels.groups),byrow=T,ncol=node_size) #this simply because I need it as a matrix I believe
+    if (is.matrix(permutable)){
+    if (dim(permutable)[1]>1){
+      id.acc <- c() # I need this because I am removing more and more labels everything cycle from the existing node
+      for (j in 1:(dim(permutable)[1]-1)){
+        number.each.group <- sum(howmany==j)
+        id <- which(howmany==j)
+        #create a new node
+        newline<-oldsuff$nodes[i,]
+        newline[1]<-MaxNodeLab+1
+        MaxNodeLab<-MaxNodeLab+1
+        newline[4]<-number.each.group
+        oldsuff$nodes<-rbind(oldsuff$nodes,newline)
+        #update the old line nodes
+        oldsuff$nodes[i,4]<-oldsuff$nodes[i,4]-number.each.group
+        #create new Mylist entry
+        entry<-dim(oldsuff$nodes)[1]
+        oldsuff$mylist[[entry]]<-list()
+        oldsuff$mylist[[entry]]$x<-number.each.group
+        oldsuff$mylist[[entry]]$y<-oldsuff$mylist[[(i)]]$y[id] #the position at which I am observing that given sampling grop
+        oldsuff$mylist[[entry]]$z<-c(labels.samples[id,])
+        #update the old Mylist entry
+        id.acc <-c(id.acc,id)
+        oldsuff$mylist[[i]]$x<-oldsuff$mylist[[i]]$x-number.each.group
+        oldsuff$mylist[[i]]$y<-oldsuff$mylist[[(i)]]$y[-id] #it is one because I am going to remove one at a time
+        oldsuff$mylist[[i]]$z<-c(labels.samples[-id.acc,])
+      }
     }
-  }
+  }}
   colnames(oldsuff$nodes)<-NULL
   rownames(oldsuff$nodes)<-NULL
   return(oldsuff)
@@ -778,7 +763,11 @@ initial_tajima_het<-function(data1,name="newSim10Bottle",mu,npoints=49,fact=1,al
   #plot_BNPR(res2b)
   #Coalescent times estimate
   times<-coaltimes_upgma(tree,n,samp_times,max.nCoal,name_samp)
-  return(list(res2b=res2b,oldsuff=oldsuff,times=times,max.nCoal=max.nCoal[-length(max.nCoal)],theta=c(log(res2b$effpopmean*fact),1)))
+  #Mutation rate estimate
+  coal_times0 <- cumsum(times$t[,1])[times$t[,2]==0]
+  tree_length0 <- sum(seq(sum(n),2)*coal_times0 )- sum(samp_times*n)
+  mu0 <- nrow(data1)/tree_length0
+  return(list(res2b=res2b,oldsuff=oldsuff,times=times,max.nCoal=max.nCoal[-length(max.nCoal)],theta=c(log(res2b$effpopmean*fact),1),mu0=mu0))
 }
 
 #' Initial MCMC fuction
@@ -804,13 +793,14 @@ initial_MCMC_het<-function(initial,ngrid=50,mu,n,alpha=.1,fact,Nate,times,samp_t
   indt<-initial$times$t[,2]
   nsites<-mu/fact
   oldsuff_het<-pp_heterochronous(n_sampled=n,initial$oldsuff,initial$times$addtimes)
-  result <- python.call("F_sample_het", oldsuff_het) 
-  likH<-python.call("calcPF_het",result$F_nodes, result$family_size,oldsuff_het,result$node_group,t*nsites,indt,"True")
+  result <- F_sample_het(oldsuff_het) 
+  likH<-calcPF_het(result$F_nodes, result$family_size,oldsuff_het,result$node_group,
+                         t*nsites,indt,"True")
   currentlik<-likH[[2]]
   for (i in 1:Nate){
-    prop <- python.call("F_sample_het", oldsuff_het)
-    lik1<-python.call("calcPF_het",prop$F_nodes, prop$family_size,oldsuff_het,prop$node_group,t*nsites,indt,"True")
-    if (!is.null(lik1[[2]])){
+    prop <- F_sample_het(oldsuff_het) 
+    lik1<-calcPF_het(prop$F_nodes, prop$family_size,oldsuff_het,prop$node_group,t*nsites,indt,"True")
+    if (!is.null(lik1[[2]]) & !is.na(lik1[[2]])){
       if (lik1[[2]]>currentlik){
         result<-prop
         currentlik<-lik1[[2]]
@@ -841,7 +831,10 @@ initial_MCMC_het<-function(initial,ngrid=50,mu,n,alpha=.1,fact,Nate,times,samp_t
   Ufun1 = function(theta, lik_init, invC, grad=FALSE) U_split(theta = theta, init = lik_init, invC = invC,
                                                               alpha = alpha, beta = .01, grad = grad)
   tLik=U_times_het(currentlik,n,samp_times,initial$times,nsites, result, initial$theta, grid,const=1,sig=.01)
-  currentval<-list(coalprior=0,gaussprior=0,grid=grid,result=result,times=initial$times,theta=initial$theta,us1=us1,dus1=dus1,Ufun1=Ufun1,lik_init=lik_init,invC=invC,rtEV=rtEV,EVC=EVC,currentlik=currentlik,prior_F=prior_F,tLik=tLik)
+  coal_lik <-  - U_split(initial$theta,lik_init,invC,.01,.01)$loglik # I prefer to keep with the correct sign
+  currentval<-list(coalprior=0,gaussprior=0,grid=grid,result=result,times=initial$times,theta=initial$theta,us1=us1,dus1=dus1,Ufun1=Ufun1,
+                   lik_init=lik_init,invC=invC,rtEV=rtEV,EVC=EVC,currentlik=currentlik,prior_F=prior_F,tLik=tLik,coal_lik=coal_lik,
+                   max.nCoal=initial$max.nCoal,mu=mu)
   return(list(currentval=currentval,probs_list=probs_list,times_list=times_list,theta_list=theta_list,prec_list=prec_list))
 }
 
@@ -892,7 +885,7 @@ intraCoalCheck<-function(oldsuff,n){
       while (test==FALSE){
         addtimes=c(rep(0,i),rep(max.nCoal[i],length(n)-i))
         oldsuff_het<-pp_heterochronous(n_sampled=n,oldsuff,addtimes)
-        result <- python.call("F_sample_het", oldsuff_het)
+        result <- F_sample_het(oldsuff_het)
         if (length(result$family_size)>0){
           test=result$family_size[length(result$family_size)]==sn
         } 
@@ -961,23 +954,23 @@ tajimaPrior_het<-function(F_nodes,n,addtimes){
   for (i in 1:(sum(n)-1)){
     #Transition probability
     new.ns=ns
-    if (F_nodes[[i]][1]<=0){#if a singleton
-      new.ns[-F_nodes[[i]][1]+1]=new.ns[-F_nodes[[i]][1]+1]-1
-      if (is.na(ns[-F_nodes[[i]][1]+1])){
+    if (F_nodes[[i]][[1]]<=0){#if a singleton
+      new.ns[-F_nodes[[i]][[1]]+1]=new.ns[-F_nodes[[i]][[1]]+1]-1
+      if (is.na(ns[-F_nodes[[i]][[1]]+1])){
         prob=0
         break
       }
     } else {
-      vint=vint[vint!=F_nodes[[i]][1]]
+      vint=vint[vint!=F_nodes[[i]][[1]]]
     }
-    if (F_nodes[[i]][2]<=0){#if a singleton
-      new.ns[-F_nodes[[i]][2]+1]=new.ns[-F_nodes[[i]][2]+1]-1
-      if (is.na(ns[-F_nodes[[i]][2]+1])){
+    if (F_nodes[[i]][[2]]<=0){#if a singleton
+      new.ns[-F_nodes[[i]][[2]]+1]=new.ns[-F_nodes[[i]][[2]]+1]-1
+      if (is.na(ns[-F_nodes[[i]][[2]]+1])){
         prob=0
         break
       }
     } else {
-      vint=vint[vint!=F_nodes[[i]][2]]
+      vint=vint[vint!=F_nodes[[i]][[2]]]
     }
     num=prod(choose(ns,ns-new.ns))
     denom=choose(nt,2)
@@ -1066,7 +1059,8 @@ coal_lik_init = function(samp_times, n_sampled, coal_times, grid)
 U_split = function(theta, init, invC, alpha, beta, grad=FALSE)
 {
   #This function has to do with the grid of the Heterochronous Tajima. 
-  
+  #IT computes the coalescent log likelihood (loglik), the prior on N_e(t) (logpri), the posterior(logpos)
+  #if Grad= true computes the gradient of these quantities used in the HMC.
   
   D=length(theta)
   f=theta[-D]
@@ -1205,7 +1199,7 @@ updateTheta_het<-function(currentval,theta_list,prec_list,probs_list,const=1,j=1
     # currentval$us2=tus2$logpos
     # currentval$dus2=tus2$dlogpos
     # currentval$tus2=tus2
-    probs_list<-rbind(probs_list,c(currentval$currentlik,currentval$prior_F,-res1$pos_summ$loglik,-res1$pos_summ$logpri))
+    probs_list<-cbind(probs_list,c(currentval$currentlik,currentval$prior_F,-res1$pos_summ$loglik,-res1$pos_summ$logpri))
   }else{
     m<-length(currentval$theta)
     tl<-nrow(as.matrix(theta_list))
@@ -1216,12 +1210,14 @@ updateTheta_het<-function(currentval,theta_list,prec_list,probs_list,const=1,j=1
     #theta2<-c(currentval$theta[-m],rep(NA,addna))
     #theta_list<-cbind(theta_list,theta2);
     prec_list<-c(prec_list,currentval$theta[m])
-    probs_list<-rbind(probs_list,c(currentval$currentlik,currentval$prior_F,-res1$pos_summ$loglik,-res1$pos_summ$logpri))
+    probs_list<-cbind(probs_list,c(currentval$currentlik,currentval$prior_F,-res1$pos_summ$loglik,-res1$pos_summ$logpri))
   }
-  currentval$coalprior<--res1$pos_summ$loglik
+  currentval$coal_lik<- -res1$pos_summ$loglik #Note: I need the minus in front because it comes with the opposite sign
   currentval$gaussprior<--res1$pos_summ$logpri
   return(list(currentval=currentval,probs_list=probs_list,prec_list=prec_list,theta_list=theta_list, acp=res1$Ind))
 }
+
+
 
 
 
@@ -1312,19 +1308,24 @@ splitHMC2 = function (q_cur, u_cur, du_cur, U, lik_init,invC, rtEV, EVC, eps=.1,
 #' @return MC steps for coalescent times
 #' @export
 
-updateTimes_hetLocal<-function(n,oldsuff,currentval,times_list,theta_list,prec_list,probs_list,const=1,mu,samp_times,a=2,sigma=0.2){  
+updateTimes_hetLocal<-function(n,oldsuff,currentval,times_list,theta_list,prec_list,probs_list,const=1,samp_times,a=2,sigma=0.2,type="Tajima"){  
   
   #New proposal
-  proposal=timesLocalProposal(currentval,initial,a,sigma)  #TO REDO
+  proposal=timesLocalProposal(currentval,a,sigma)  #TO REDO
   propTimes=proposal$propTimes
   #compute quantities for MH ratios
+  mu <- currentval$mu
   #1)Likelihood
   newoldsuff=pp_heterochronous(n_sampled=n,oldsuff,proposal$propTimes$addtimes)
-  newlik=python.call("calcPF_het",currentval$result$F_nodes, currentval$result$family_size,newoldsuff,currentval$result$node_group,proposal$propTimes$t[,1]*mu,proposal$propTimes$t[,2],"True")
+  if (type=="Tajima"){
+    newlik=calcPF_het(currentval$result$F_nodes, currentval$result$family_size,newoldsuff,currentval$result$node_group,proposal$propTimes$t[,1]*mu,proposal$propTimes$t[,2],"True")
+  } else if (type=="Kingman"){
+    newlik=kingCalcPF_het(currentval$result$F_nodes, currentval$result$family_size,newoldsuff,n,proposal$propTimes$t[,1]*mu,proposal$propTimes$t[,2],"True","False")
+  }
   #2)Prior & posterior
-  if (!is.null(newlik[[2]])){
+  if (!is.null(newlik[[2]]) & !is.na(newlik[[2]])){
     updatePos=U_times_het(newlik[[2]],n,samp_times,propTimes,mu, currentval$result, currentval$theta, currentval$grid,const=1,sig=.01)
-    logMHR=min(0,-updatePos$logpos+log(proposal$revDen)-currentval$currentlik-currentval$coalprior-log(proposal$forDen))
+    logMHR=min(0,-updatePos$logpos+log(proposal$revDen)-currentval$currentlik-currentval$coal_lik-log(proposal$forDen))
     if (log(runif(1))<=logMHR){Ind=1} else {Ind=0}
   } else {Ind=0}
   #Updates depending on the acceptance or not.
@@ -1380,16 +1381,17 @@ updateTimes_hetLocal<-function(n,oldsuff,currentval,times_list,theta_list,prec_l
     tus1<-U_split(currentval$theta,currentval$lik_init,currentval$invC,.01,.01)
     currentval$us1  = tus1$logpos
     currentval$dus1 = U_split(currentval$theta,currentval$lik_init,currentval$invC,.01,.01, TRUE)
-    currentval$currentlik<--updatePos$loglik
+    currentval$currentlik<- -updatePos$loglik
+    currentval$coal_lik <- -updatePos$logpri
     currentval$gaussprior<--tus1$logpri
-    probs_list<-rbind(probs_list,c(-updatePos$loglik,currentval$prior_F,-updatePos$logpri,currentval$gaussprior))
+    probs_list<-cbind(probs_list,c(-updatePos$loglik,currentval$prior_F,-updatePos$logpri,currentval$gaussprior))
   }else{#Ind=0, i.e. rejecting the update. 
     times_list<-cbind(times_list,cumsum(currentval$times$t[,1])[currentval$times$t[,2]==0])
     ##WHY do I update this if I am rejecting? I don't think it is necessary. 
     #currentval$currentlik<--res2$pos_summ$loglik
     #currentval$coalprior<--res2$pos_summ$logpri
     #CHECK!!!!
-    probs_list<-rbind(probs_list,c(currentval$currentlik,currentval$prior_F,currentval$coalprior,currentval$gaussprior))
+    probs_list<-cbind(probs_list,c(currentval$currentlik,currentval$prior_F,currentval$coalprior,currentval$gaussprior))
     
   }
   return(list(currentval=currentval,probs_list=probs_list,prec_list=prec_list,times_list=times_list,theta_list=theta_list, acp=Ind))
@@ -1397,11 +1399,11 @@ updateTimes_hetLocal<-function(n,oldsuff,currentval,times_list,theta_list,prec_l
 }
 
 
-timesLocalProposal<-function(currentval,initial,a,sigma){
+timesLocalProposal<-function(currentval,a,sigma){
   #
   #Times update proposal according to the new scheme: Local choice of number of increments to change and truncated normal upates
   #
-  TotConstraint=initial$max.nCoal+1
+  TotConstraint=currentval$max.nCoal+1
   n1=length(currentval$lik_init$args$coal_times)
   tchange=sample(a,1)
   change=sample(n1,tchange)
@@ -1440,9 +1442,11 @@ localUpdate_RT_FREE_het<-function(result,n){
   #Note: lots of constraints!!! to check irreducibility. 
   
   newresult=list()
-  newresult$change_F=result$change_F
   newresult$family_size=result$family_size
   newresult$F_nodes=result$F_nodes
+  for (i in 1:length(result$F_nodes)){
+    newresult$F_nodes[[i]] <- unlist(result$F_nodes[[i]])
+  }
   newresult$node_group=result$node_group #For a given data it never changes. 
   
   
@@ -1455,8 +1459,8 @@ localUpdate_RT_FREE_het<-function(result,n){
   newresult$ForwProb<-1/(sum(n)-2)
   newresult$BackProb<-1/(sum(n)-2)
   #order F_nodes
-  result$F_nodes[[l]]<-sort(result$F_nodes[[l]])
-  result$F_nodes[[l+1]]<-sort(result$F_nodes[[l+1]])
+  result$F_nodes[[l]]<-sort(unlist(result$F_nodes[[l]]))
+  result$F_nodes[[l+1]]<-sort(unlist(result$F_nodes[[l+1]]))
   
   #########################################
   ########## MARKOV  MOVES ############### 
@@ -1473,75 +1477,65 @@ localUpdate_RT_FREE_het<-function(result,n){
     #transition probabilities.
     newresult$ForwProb<-newresult$ForwProb/2
     newresult$BackProb<-newresult$BackProb/2
-    if (m==1){#do nothing
-    } else{#move 2 and 3
-      # Assumption: the vintaged are always ordered in incresing order: vintage l is always gonna be in [[l+1]][2]
-      lineages=c(result$F_nodes[[l]][1:2],result$F_nodes[[l+1]][1]) 
-      if (length(unique(lineages))==1){#singleton+cherry=nothing happens
-      } else if (lineages[3]<=0){#joining to a singleton of some kind
-        if (lineages[1]==lineages[2]) {#cherry joining a vintage or a singleton=it doesn't mate m=2 or 3
-          newresult$ForwProb<-newresult$ForwProb*2
+    #Case m=1 has been removed since you do nothing
+    
+    #Case move 2 and 3
+    # Assumption: the vintaged are always ordered in incresing order: vintage l is always gonna be in [[l+1]][2]
+    lineages=c(result$F_nodes[[l]][1:2],result$F_nodes[[l+1]][1]) 
+    if (length(unique(lineages))==1){#singleton+cherry=nothing happens
+    } else if (lineages[3]<=0){#joining to a singleton of some kind
+      if (lineages[1]==lineages[2]) {#cherry joining a vintage or a singleton=it doesn't mate m=2 or 3
+        newresult$ForwProb<-newresult$ForwProb*2
+        newresult$F_nodes[[l]]<-c(lineages[1],lineages[3],l)
+        newresult$F_nodes[[l+1]]<-c(lineages[2],l,l+1)
+      } else if (lineages[1]==lineages[3]){#Note: they must be singletons of the same group
+        if (m==2){#lineages[1] is involved=nothing happens
+        } else {#m=3=it is not symmetric
+          newresult$BackProb<-newresult$BackProb*2
           newresult$F_nodes[[l]]<-c(lineages[1],lineages[3],l)
           newresult$F_nodes[[l+1]]<-c(lineages[2],l,l+1)
-        } else if (lineages[1]==lineages[3]){#Note: they must be singletons of the same group
-          if (m==2){#lineages[1] is involved=nothing happens
-          } else {#m=3=it is not symmetric
-            newresult$BackProb<-newresult$BackProb*2
-            newresult$F_nodes[[l]]<-c(lineages[1],lineages[3],l)
-            newresult$F_nodes[[l+1]]<-c(lineages[2],l,l+1)
-            newresult$family_size[l]<-2 #l+1 position does not change
-          }
-        } else if (lineages[2]==lineages[3]){
-          if (m==2){#not symmetric
-            newresult$BackProb<-newresult$BackProb*2
-            newresult$F_nodes[[l]]<-c(lineages[2],lineages[3],l)
-            newresult$F_nodes[[l+1]]<-c(lineages[1],l,l+1)
-            newresult$family_size[l]<-2 #l+1 position does not change
-          } else {#m=3=they are equal=nothing happens
-          }
-        } else {#they are all different: lineages[3] is a singleton, the others can be singletons or vintages
-          if (m==2){
-            newresult$F_nodes[[l]]<-c(lineages[2],lineages[3],l)
-            newresult$F_nodes[[l+1]]<-c(lineages[1],l,l+1)
-            if (lineages[1]>0){
-              newresult$family_size[l]<-result$family_size[l+1]-result$family_size[lineages[1]]+1 #from first tree
-            }#if lineages[1] is a singleton, I am swapping with a singleton, so np.
-          } else {#m=3
-            newresult$F_nodes[[l]]<-c(lineages[1],lineages[3],l)
-            newresult$F_nodes[[l+1]]<-c(lineages[2],l,l+1)
-            if (lineages[2]>0){
-              newresult$family_size[l]<-result$family_size[l+1]-result$family_size[lineages[2]]+1 #from first tree
-            }#if lineages[1] is a singleton, I am swapping with a singleton, so np.
-          }
         }
-      } else if (lineages[3]>0){#joining a vintage in l+1
-        if (lineages[1]==lineages[2]) {#cherry joining a vintage or a singleton=it doesn't mate m=2 or 3
-          #It is not symmetric
-          newresult$ForwProb<-newresult$ForwProb*2
+      } else if (lineages[2]==lineages[3]){
+        if (m==2){#not symmetric
+          newresult$BackProb<-newresult$BackProb*2
+          newresult$F_nodes[[l]]<-c(lineages[2],lineages[3],l)
+          newresult$F_nodes[[l+1]]<-c(lineages[1],l,l+1)
+        } else {#m=3=they are equal=nothing happens
+        }
+      } else {#they are all different: lineages[3] is a singleton, the others can be singletons or vintages
+        if (m==2){
+          newresult$F_nodes[[l]]<-c(lineages[2],lineages[3],l)
+          newresult$F_nodes[[l+1]]<-c(lineages[1],l,l+1)
+        } else {#m=3
           newresult$F_nodes[[l]]<-c(lineages[1],lineages[3],l)
           newresult$F_nodes[[l+1]]<-c(lineages[2],l,l+1)
-          newresult$family_size[l]<-result$family_size[l+1]-1
-        } else {#they must be all distinct (lineages[3] is unique)
-          if (m==2){
-            newresult$F_nodes[[l]]<-c(lineages[2],lineages[3],l)
-            newresult$F_nodes[[l+1]]<-c(lineages[1],l,l+1)
-            if (lineages[1]>0){
-              newresult$family_size[l]<-result$family_size[l+1]-result$family_size[lineages[1]]+result$family_size[lineages[3]] 
-            } else{
-              newresult$family_size[l]<-result$family_size[l+1]-1
-            }
-          } else {#m=3
-            newresult$F_nodes[[l]]<-c(lineages[1],lineages[3],l)
-            newresult$F_nodes[[l+1]]<-c(lineages[2],l,l+1)
-            if (lineages[2]>0){
-              newresult$family_size[l]<-result$family_size[l+1]-result$family_size[lineages[2]]+result$family_size[lineages[3]] 
-            } else{
-              newresult$family_size[l]<-result$family_size[l+1]-1
-            }
-          }
         }
       }
-    }    
+    } else if (lineages[3]>0){#joining a vintage in l+1
+      if (lineages[1]==lineages[2]) {#cherry joining a vintage or a singleton=it doesn't mate m=2 or 3
+        #It is not symmetric
+        newresult$ForwProb<-newresult$ForwProb*2
+        newresult$F_nodes[[l]]<-c(lineages[1],lineages[3],l)
+        newresult$F_nodes[[l+1]]<-c(lineages[2],l,l+1)
+      } else {#they must be all distinct (lineages[3] is unique)
+        if (m==2){
+          newresult$F_nodes[[l]]<-c(lineages[2],lineages[3],l)
+          newresult$F_nodes[[l+1]]<-c(lineages[1],l,l+1)
+        } else {#m=3
+          newresult$F_nodes[[l]]<-c(lineages[1],lineages[3],l)
+          newresult$F_nodes[[l+1]]<-c(lineages[2],l,l+1)
+        }
+      }
+    }
+    #Now correct the family_size
+    newresult$family_size[l:(l+1)]<-0
+    if (newresult$F_nodes[[l]][1]<=0){newresult$family_size[l]<-newresult$family_size[l]+1
+    } else {newresult$family_size[l]<-newresult$family_size[l]+newresult$family_size[newresult$F_nodes[[l]][1]]}
+    if (newresult$F_nodes[[l]][2]<=0){newresult$family_size[l]<-newresult$family_size[l]+1
+    } else {newresult$family_size[l]<-newresult$family_size[l]+newresult$family_size[newresult$F_nodes[[l]][2]]}
+    if (newresult$F_nodes[[l+1]][1]<=0){newresult$family_size[l+1]<-newresult$family_size[l]+1
+    } else {newresult$family_size[l+1]<-newresult$family_size[l]+newresult$family_size[newresult$F_nodes[[l+1]][1]]}
+    
   }  else { #Case B
     a=0
     newresult$family_size[c(l,l+1)]=result$family_size[c(l+1,l)]#invert the position
@@ -1560,7 +1554,12 @@ localUpdate_RT_FREE_het<-function(result,n){
   newresult$l<-l
   newresult$a<-a
   
+  newresult$F_nodes[[l]] <- sort(newresult$F_nodes[[l]])
+  newresult$F_nodes[[l+1]] <- sort(newresult$F_nodes[[l+1]])
   
+  #turn things into list of list
+  for (i in 1:length(newresult$F_nodes)){
+    mode(newresult$F_nodes[[i]]) <- 'integer'}
   return(newresult)
 }
 
@@ -1577,17 +1576,26 @@ localUpdate_RT_FREE_het<-function(result,n){
 #' @export
 
 
-updateFmat_Markov_FREE_het<-function(currentval,probs_list,const=1,mu,oldsuff,n){
+updateFmat_Markov_FREE_het<-function(currentval,probs_list,const=1,oldsuff,n,type="Tajima"){
   result<-currentval$result
-  result_new <- localUpdate_RT_FREE_het(result,n)
-  newprior<-tajimaPrior_het(result_new$F_nodes,n,currentval$times$addtimes)
   t<-currentval$times$t[,1]
   indt<-currentval$times$t[,2]
+  mu <- currentval$mu
   oldsuff_het<-pp_heterochronous(n_sampled=n,oldsuff,currentval$times$addtimes)
-  likH<-python.call("calcPF_het",result_new$F_nodes, result_new$family_size,oldsuff_het,result_new$node_group,t*mu,indt,"True")
+  if (type=="Tajima"){
+    result_new <- localUpdate_RT_FREE_het(result,n)
+    newprior<-tajimaPrior_het(result_new$F_nodes,n,currentval$times$addtimes)
+    likH<- calcPF_het(result_new$F_nodes, result_new$family_size,oldsuff_het,result_new$node_group,t*mu,indt,"True")
+  } else if (type=="Kingman"){
+    result_new <- localUpdate_King_FREE_het(result,n)
+    newprior<-kingmanPrior_het(result_new$F_nodes,n,currentval$times$addtimes)
+    likH <- python.call("kingCalcPF_het",result_new$F_nodes, result_new$result$family_size,oldsuff_het,n,t*mu,indt,"True")
+  }
+  
   newlike<-likH[[2]]/const
-  if (!is.null(likH[[2]])){
-    AR<--currentval$currentlik+newlike+log(newprior)-log(currentval$prior_F)-log(result_new$ForwProb)+log(result_new$BackProb)
+  newlike
+  if (!is.null(likH[[2]]) & !is.na(likH[[2]])){
+    AR<- newlike+log(newprior) -currentval$currentlik-log(currentval$prior_F)-log(result_new$ForwProb)+log(result_new$BackProb)
     if (runif(1)<exp(AR)){
       acp<-1
       currentval$result<-result_new
@@ -1605,8 +1613,79 @@ updateFmat_Markov_FREE_het<-function(currentval,probs_list,const=1,mu,oldsuff,n)
     acp<-0
   }
   #F_list[[length(F_list)+1]]<- currentval$result$F
-  probs_list<-rbind(probs_list,c(currentval$currentlik,currentval$prior_F,currentval$coalprior,currentval$gaussprior))
+  probs_list<-cbind(probs_list,c(currentval$currentlik,currentval$prior_F,currentval$coalprior,currentval$gaussprior))
   return(list(currentval=currentval,probs_list=probs_list, acp=acp))
+}
+
+
+
+updateMU_het<-function(currentval,const=1,oldsuff,n,sigma.mu,alpha.mu, beta.mu, type="Tajima"){
+  result<-currentval$result
+  t<-currentval$times$t[,1]
+  indt<-currentval$times$t[,2]
+  mu <- currentval$mu
+  oldsuff_het<-pp_heterochronous(n_sampled=n,oldsuff,currentval$times$addtimes)
+  new_mu <- rnorm(1,mean=mu,sd=sigma.mu)
+  if (type=="Tajima"){
+    likH<-python.call("calcPF_het",result$F_nodes, result$family_size,oldsuff_het,result$node_group,t*new_mu,indt,"True")
+  } else if (type=="Kingman"){
+    likH <- python.call("kingCalcPF_het",result$F_nodes, result$result$family_size,oldsuff_het,n,t*new_mu,indt,"True")
+  }
+  
+  newlike<-likH[[2]]/const
+  if (!is.null(likH[[2]]) & !is.na(likH[[2]])){
+    new_prior <- dgamma(new_mu,shape=alpha.mu,rate=beta.mu)
+    old_prior<- dgamma(mu,shape=alpha.mu,rate=beta.mu)
+    # No forward backward prob because symmetric
+    AR<- newlike+log(new_prior) -currentval$currentlik-log(old_prior)
+    if (runif(1)<exp(AR)){
+      acp<-1
+      currentval$mu <- new_mu
+      currentval$currentlik<-newlike
+      #currentval$lik_call<-where_save
+    } else{
+      acp<-0
+    }
+  } else{
+    acp<-0
+  }
+  #F_list[[length(F_list)+1]]<- currentval$result$F
+  return(list(currentval=currentval,acp=acp))
+}
+
+
+updateMU_het_unif<-function(currentval,const=1,oldsuff,n,delta.sup,delta.ker,muT, type="Tajima"){
+  result<-currentval$result
+  t<-currentval$times$t[,1]
+  indt<-currentval$times$t[,2]
+  mu <- currentval$mu
+  oldsuff_het<-pp_heterochronous(n_sampled=n,oldsuff,currentval$times$addtimes)
+  new_mu <- mu+runif(1,min=-delta.ker,max=delta.ker)
+  if (abs(new_mu-mu)<=muT){
+  
+  if (type=="Tajima"){
+    likH<-python.call("calcPF_het",result$F_nodes, result$family_size,oldsuff_het,result$node_group,t*new_mu,indt,"True")
+  } else if (type=="Kingman"){
+    likH <- python.call("kingCalcPF_het",result$F_nodes, result$result$family_size,oldsuff_het,n,t*new_mu,indt,"True")
+  }
+  newlike<-likH[[2]]/const
+  if (!is.null(likH[[2]])){
+    # No forward backward prob because symmetric
+    AR<- newlike -currentval$currentlik
+    if (runif(1)<exp(AR)){
+      acp<-1
+      currentval$mu <- new_mu
+      currentval$currentlik<-newlike
+      #currentval$lik_call<-where_save
+    } else{
+      acp<-0
+    }
+  } else{
+    acp<-0
+  }
+  } else {acp<-0}
+  #F_list[[length(F_list)+1]]<- currentval$result$F
+  return(list(currentval=currentval,acp=acp))
 }
 
 

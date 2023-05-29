@@ -6,7 +6,7 @@
 \alias{phylodyn-package}
 \title{Tools for analyzing genealogy and genome sequence data using INLA and MCMC.}
 \description{
-Tools for analyzing genealogy and genome sequence data using INLA and MCMC.
+Statistical tools for reconstructing population size from genetic sequence data.
 }
 \examples{
 library(phylodyn)
@@ -19,14 +19,6 @@ if (requireNamespace("INLA", quietly = TRUE)) {
 
  plot_BNPR(res_BNPR, traj = traj, main="BNPR")
 }
-}
-\author{
-Michael Karcher,
-Julia Palacios,
-Shiwei Lan,
-Vladimir Minin
-
-Maintainer: Michael Karcher <mkarcher@uw.edu>
 }
 \references{
 1. A. Rambaut, O. G. Pybus, M. I. Nelson, C. Viboud, J. K. 
@@ -66,4 +58,11 @@ Maintainer: Michael Karcher <mkarcher@uw.edu>
 \seealso{
 \code{\link[INLA:INLA-package]{INLA}}
 }
+\author{
+Michael Karcher,
+Julia Palacios,
+Shiwei Lan,
+Vladimir Minin
 
+Maintainer: Michael Karcher <mkarcher@uw.edu>
+}

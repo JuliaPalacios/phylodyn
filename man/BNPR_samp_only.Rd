@@ -4,8 +4,14 @@
 \alias{BNPR_samp_only}
 \title{Nonparametric estimate of sampling intensity}
 \usage{
-BNPR_samp_only(data, lengthout = 100, grid = NULL, tmrca = NULL,
-  prec_alpha = 0.01, prec_beta = 0.01)
+BNPR_samp_only(
+  data,
+  lengthout = 100,
+  grid = NULL,
+  tmrca = NULL,
+  prec_alpha = 0.01,
+  prec_beta = 0.01
+)
 }
 \arguments{
 \item{data}{\code{phylo} object or list containing vectors of sampling times
@@ -21,4 +27,3 @@ BNPR_samp_only(data, lengthout = 100, grid = NULL, tmrca = NULL,
 \description{
 Nonparametric estimate of sampling intensity
 }
-

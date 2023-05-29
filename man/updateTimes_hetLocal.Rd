@@ -13,10 +13,10 @@ updateTimes_hetLocal(
   prec_list,
   probs_list,
   const = 1,
-  mu,
   samp_times,
   a = 2,
-  sigma = 0.2
+  sigma = 0.2,
+  type = "Tajima"
 )
 }
 \arguments{
@@ -36,13 +36,13 @@ updateTimes_hetLocal(
 
 \item{const}{scaling factor}
 
-\item{mu}{mutation parameter}
-
 \item{samp_times}{vector of sampling times}
 
 \item{a}{Z1}
 
 \item{sigma}{sdev of the truncated normal.}
+
+\item{mu}{mutation parameter}
 }
 \value{
 MC steps for coalescent times

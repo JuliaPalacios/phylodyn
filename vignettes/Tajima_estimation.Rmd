@@ -2,7 +2,7 @@
 title: Estimation of an exponential population size trajectory by sampling Tajima’s
   trees (n=70)
 author: "Lorenzo Cappello"
-date: "03/26/2020"
+date: "03/26/2023"
 output: html_document
 ---
 
@@ -11,21 +11,20 @@ This vignette displays a simulation study designed to approximate an exponential
 We start by loading the required packages.
 
 ```{r message=FALSE}
-library(phylodyn)
-library("rPython")
+library("phylodyn")
+library("reticulate")
 library("phangorn")
 library("mvtnorm")
-library("ape")
 library("truncnorm")
 ```
 
 Load python function file
 ```{r}
-path <- paste(system.file(package="phylodyn"), "python/Fsamp_hTDv2.py", sep="/")
-python.load(path)
+path <- paste(system.file(package="phylodyn"), "python/Fsamp_hTDv3.py", sep="/")
+source_python(path)
 ```
 
-We then set seed and sample size (n), mutation rate (mu). Samp_times and n below mirrors Exp n=70 in Cappello et al. (2020) [see table 1]
+We then set seed and sample size (n), mutation rate (mu). Samp_times and n below mirrors Exp n=70 in Cappello et al. (2023) [see table 1]
 ```{r}
 set.seed(154)
 n<-c(20,15,10,10,10,5)
@@ -36,7 +35,7 @@ mu=22
 
 We define an arbitrary population size trajectory (an exponential for the purpose of this vignette)
 ```{r}
-bottleneck_traj<-function(t){
+exp_traj<-function(t){
   result=rep(0,length(t))
   result[t<=0.1]<-10
   result[t>0.1 & t<0.25]<-10*exp(2-20*t[t>0.1 & t<0.25]) #50 times smaller
@@ -51,7 +50,7 @@ Data simulation proceeds in several steps
 
 We simulate a vector of n-1 coalescent times under the N(t) trajectory defined above. Inputs are the sampling times, the vector of the number of samples at each sampling time and the population trajectory function
 ```{r}
-simulation<-coalsim(samp_times =samp_times, n_sampled = n, traj = bottleneck_traj)
+simulation<-coalsim(samp_times =samp_times, n_sampled = n, traj = exp_traj)
 ```
 
 We then simulatue a genealogy with branch lengths defined by the coalescent times simulated above. We also convert the sample into Newick format so it can be plotted. 
@@ -60,7 +59,6 @@ tree1<-sample_genealogy(simulation)
 treeP<-read.tree(text=tree1$Newick)
 plot(ladderize(treeP))
 ```
-Note that sample labels are arbitrarly assigned: we first labels of sampling group s_1 as 1 to n_1, then those of sampling s_2 as n_1+1 to n_2 etc. 
 
 
 Last step of the data simulation is to superimpose mutations on the sampled genealogy
@@ -130,13 +128,13 @@ for (j in 1:Nsim){
   acp1<-acp1+thetaup$acp
 
   #2) Local-Global update for the coalescent times via a truncated normal (Cappello et al. 2020)
-  timesup<-updateTimes_hetLocal(n,oldsuff,currentval,times_list,theta_list,prec_list,probs_list,const=1,mu,samp_times,Z1,sigma)
+  timesup<-updateTimes_hetLocal(n,oldsuff,currentval,times_list,theta_list,prec_list,probs_list,const=1,samp_times,Z1,sigma)
   currentval<-timesup$currentval;theta_list<-timesup$theta_list; prec_list<-timesup$prec_list; probs_list<-timesup$probs_list; times_list<-timesup$times_list
   timesup$acp
   acp2<-acp2+timesup$acp
 
   #3) Local update for the ranked tree shapes (Palacios et al. 2019, Cappello et al. 2020)
-  FMatupMarkov_FREE<-updateFmat_Markov_FREE_het(currentval,probs_list,const=1,mu,oldsuff,n)
+  FMatupMarkov_FREE<-updateFmat_Markov_FREE_het(currentval,probs_list,const=1,oldsuff,n)
   currentval<-FMatupMarkov_FREE$currentval; probs_list<-FMatupMarkov_FREE$probs_list;
   acp3<-acp3+FMatupMarkov_FREE$acp
 
@@ -191,7 +189,7 @@ res_BNPR3$effpop025<-flow[-length(fmed)]/fact
 ```
 
 ```{r, fig.width=8.5, fig.height=5}
-plot_BNPR(res_BNPR3,heatmaps=FALSE,heatmap_labels = FALSE,ylab="Ne(t)",main="(A) Ne(t) BESTT",xlim=c(.77,0),ylim=c(.001,1000))
+plot_BNPR(res_BNPR3,heatmaps=FALSE,heatmap_labels = FALSE,ylab="Ne(t)",main="(A) Ne(t) BESTT",xlim=c(.67,0),ylim=c(.001,1000))
 x<-seq(0,.8,by=.0001)
 points(x,bottleneck_traj(x),type="l",lty=2)
 ```
