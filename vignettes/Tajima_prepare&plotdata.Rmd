@@ -72,7 +72,7 @@ n <- as.vector(table(samp_times))
 samp_times <- unique(samp_times)
 input_tree <- c()
 initial<-initial_tajima_het(data_taj,name="trial",mu=1,npoints=49,fact=1,alpha=0.2,samp_times,n,input_tree,name_samp)
-oldsuff<-pp_heterochronous(n_sampled=n,initial$oldsuff,initial$times$addtimes)
+oldsuff<-phylodyn:::pp_heterochronous(n_sampled=n,initial$oldsuff,initial$times$addtimes)
 
 #oldsuff<-tajima_perphylo(data_taj)
 #Plot perfect phylogeny
