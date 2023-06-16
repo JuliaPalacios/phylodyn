@@ -87,6 +87,8 @@ name_samp<-c()
 fact<-1
 initial<-initial_tajima_het(data1,name="exp70",mu,npoints=49,fact=1,alpha=0.2,samp_times,n,input_tree,name_samp)
 ```
+Note: If there is an error with reticulate/python, please try this: 
+https://github.com/rstudio/reticulate/issues/909
 
 Then we initialize the MCMC states
 ```{r}
