@@ -40,7 +40,7 @@ for (i in 1:length(tr_list)) {
 print(Fmat_list)
 ```
 
-We next compute pairwise distances between above five ranked tree shapes for $n=5$. In this example, we use $L_1$ distance and considers ranked tree shapes only (i.e., unweighted).
+We next compute pairwise distances between above five ranked tree shapes for $n=5$. In this example, we use $L_1$ distance and consider ranked tree shapes only (i.e., unweighted).
 ```{r, include=TRUE, message=FALSE, warning=FALSE}
 dmat <- matrix(0, nrow=length(tr_list), ncol=length(tr_list))
 for (i in 1:length(tr_list)) {
@@ -63,6 +63,22 @@ plot(mds$points, xlab='', ylab='', pch=4, lwd=6,
      xlim=c(-1.5, 1.5), ylim=c(-1, 1.5))  
 text(mds$points[,1:2], labels=paste('tree', 1:5), col='red', cex=1.2)
 ```    
+Here is a simple example of computing the distance between two trees, weighted and unweighted:
+
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+library("ape")
+tree1<-rcoal(10)
+tree2<-rcoal(10)
+F1<-gen_Fmat(tree1,tol=0)
+F2<-gen_Fmat(tree2,tol=0)
+d2=sum((F1-F2)^2)^.5
+tr.dat.1 <- phylodyn:::gen.tr.data2(tree1,tol=0)
+tr.dat.2 <- phylodyn:::gen.tr.data2(tree2,tol=0)
+dist_w <- sqrt(sum((tr.dat.1$Fmat0*tr.dat.1$Wmat0 - tr.dat.2$Fmat0 * 
+                          tr.dat.2$Wmat0)^2))
+dist_F <- sqrt(sum((tr.dat.1$Fmat0 - tr.dat.2$Fmat0)^2)) #unweighted calculated again
+
+```
 
 We also compute the distances with adaptations of other tree distances to ranked tree shapes.
 To adapt other metrics, we assign unique labels to leaves:
