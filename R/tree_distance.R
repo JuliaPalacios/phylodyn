@@ -580,7 +580,7 @@ gen.tr.data2<-function(tr, tol=13) {
   return(list(Nnode=tr$Nnode,Fmat0=Fmat0, u.info=u.t,Wmat0=Wmat0))
 }
 
-#' Distance between two ranked tree shapes or ranked genealogies (Version 2)
+#' Distance between two ranked tree shapes or ranked genealogies (Version 2, fixed error: July 2023, use version 1)
 #'
 #' @param tr.1 An object of class \code{phylo}. Can be either isochronous or heterochronous.
 #' @param tr.2 An object of class \code{phylo}. Can be either isochronous or heterochronous.
@@ -630,11 +630,11 @@ dist_pairwise2<-function (tr.1, tr.2, dist.method = "l1", weighted = FALSE)
   tr.dat.2 <- gen.tr.data2(tree2)
   if (weighted) {
     if (dist.method == "l1") {
-      dist <- sum(abs(tr.dat.1$Fmat0*tr.dat.1$Fmat0 - tr.dat.2$Fmat0 * 
+      dist <- sum(abs(tr.dat.1$Fmat0*tr.dat.1$Wmat0 - tr.dat.2$Fmat0 * 
                         tr.dat.2$Wmat0))
     }
     else if (dist.method == "l2") {
-      dist <- sqrt(sum((tr.dat.1$Fmat0*tr.dat.1$Fmat0 - tr.dat.2$Fmat0 * 
+      dist <- sqrt(sum((tr.dat.1$Fmat0*tr.dat.1$Wmat0 - tr.dat.2$Fmat0 * 
                           tr.dat.2$Wmat0)^2))
     }
     else {
