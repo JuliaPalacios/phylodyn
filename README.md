@@ -115,13 +115,20 @@ Molecular Ecology Resources, 17, 96-100, 2017.
     
 ## Contributors
 
-Julie Zhang
+Julie Zhang 
+
 Lorenzo Cappello
+
 Vladimir Minin
+
 Michael Karcher
+
 Jaehee Kim
+
 Samyak Rajanala
+
 Shiwei Lan
+
 Julia Palacios
 
 
