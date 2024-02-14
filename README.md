@@ -50,6 +50,7 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
 
 14. [Selection](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Parameteric_growth_comparison.Rmd): An application for the hierarchical model described in an upcoming draft to detect different growth rates of the effective population size.
 
+15.[Multifurcating]:  
 
 ## Datasets
 
@@ -110,3 +111,19 @@ Molecular Ecology Resources, 17, 96-100, 2017.
 12. L. Cappello, A. Veber., J.A. Palacios. [The Tajima Heterochronous n-Coalescent: Inference from Heterochronously Sampled Molecular Data](https://arxiv.org/pdf/2004.06826.pdf), Arxiv, 2020.
 
 13. L. Cappello, J.A. Palacios. [Adaptive Preferential Sampling in Phylodynamics](https://arxiv.org/pdf/2009.02307.pdf), Arxiv, 2020.
+
+    
+## Contributors
+
+Julie Zhang
+Lorenzo Cappello
+Vladimir Minin
+Michael Karcher
+Jaehee Kim
+Samyak Rajanala
+Shiwei Lan
+Julia Palacios
+
+
+
+
