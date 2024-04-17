@@ -50,7 +50,11 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
 
 14. [Selection](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Parameteric_growth_comparison.Rmd): An application for the hierarchical model described in an upcoming draft to detect different growth rates of the effective population size.
 
-15.[Multifurcating]:  
+15. [Lineage Tracing Simulation]: Simulation and estimation of single cell lineage tracing phylogenies.
+
+16. [Lineage Tracing Estimation]: An application of coalescent single lineage tracing inference. 
+    
+17.[Multifurcating]:  
 
 ## Datasets
 
