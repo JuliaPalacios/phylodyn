@@ -112,9 +112,11 @@ Molecular Ecology Resources, 17, 96-100, 2017.
 11. O. Maliet, F. Gascuel, A. Lambert. [Ranked Tree Shapes, Nonrandom Extinctions, and the Loss of Phylogenetic Diversity](https://doi.org/10.1093/sysbio/syy030), *Systematic Biology*, 67(6):1025–1040, 2018.
 
 
-12. L. Cappello, A. Veber., J.A. Palacios. [The Tajima Heterochronous n-Coalescent: Inference from Heterochronously Sampled Molecular Data](https://arxiv.org/pdf/2004.06826.pdf), Arxiv, 2020.
+12. L. Cappello, A. Veber., J.A. Palacios. [The Tajima Heterochronous n-Coalescent: Inference from Heterochronously Sampled Molecular Data](https://www.tandfonline.com/doi/full/10.1080/01621459.2024.2330732), *JASA Applications and Case Studies*, 2024.
 
-13. L. Cappello, J.A. Palacios. [Adaptive Preferential Sampling in Phylodynamics](https://arxiv.org/pdf/2009.02307.pdf), Arxiv, 2020.
+13. L. Cappello, J.A. Palacios. [Adaptive Preferential Sampling in Phylodynamics](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1010897), *PLOS Comp. Biology*, 2023.
+
+14. J. Zhang, J.A. Palacios. [Multiple merger coalescent inference of effective population size](https://arxiv.org/abs/2407.14976), Arxiv 2024. 
 
     
 ## Contributors
