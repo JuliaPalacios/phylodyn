@@ -1,0 +1,143 @@
+---
+title: "Effective population size inference under Beta-coalescent"
+author: "Julie Zhang"
+date: "2024-07-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ape)
+library(TreeTools)
+library(matrixStats)
+library(tidyverse)
+library(parallel)
+set.seed(1234)
+```
+
+This is going to work only after adding stuff to phylodyn I think or else you have to load the function always. 
+
+## Generating a tree from the Beta-coalescent
+
+We can generate a multifurcating tree from the Beta-coalescent which parallels \texttt{rcoal()} in \texttt{ape}. 
+
+```{r}
+N <- 50
+alpha <- 1.5
+sim_tree <- rbeta_coal(N, alpha)
+print(sim_tree$Nnode)
+plot(sim_tree, show.tip.label=FALSE)
+```
+
+We can also generate a tree from a given effective population size trajectory and various sampling times, which parallels \texttt{coalsim()} in \texttt{phylodyn}. 
+
+```{r}
+sim_exp_tree_list <- beta_coalsim(samp_times=c(0,1), n_sampled = c(25,25), alpha=1.5, traj=exp_traj)
+sim_exp_tree <- generate_newick_multif(sim_exp_tree_list)$newick
+print(sim_exp_tree$Nnode)
+plot(sim_exp_tree, show.tip.label=FALSE)
+```
+
+## Reconstructing effective population size
+
+We expanded the implementation of BNPR methods originally developed in \texttt{phylodyn} for bifurcating trees. One only needs to give the value of $\alpha$, which modifies the coalescent factors in order to run. We run both on the tree above with true $\alpha=1.5$ and plot the inferred $N_e(t)$. 
+
+```{r}
+BNPR_sim_exp <-  BNPR_Lambda(sim_exp_tree, alpha_multif=1.5)
+plot_BNPR(BNPR_sim_exp, traj=exp_traj)
+```
+
+## Inference Methods
+
+We can first compute the block-size MLE which does not use any information about the branch lengths and apply BNPR. 
+
+```{r pressure, echo=FALSE}
+sim_alpha_bs <- beta_coal_block_size_alpha_mle(sim_exp_tree)
+BNPR_block_size <- BNPR_Lambda(sim_exp_tree, alpha_multif=sim_alpha_bs)
+```
+
+Then, we can apply the empirical Bayes approach until convergence of $\alpha$. 
+
+```{r}
+sim_hybrid <- posterior_beta_coal_hybrid(sim_exp_tree)
+sim_alpha_eb <- sim_hybrid$alpha_opt
+BNPR_hybrid <- sim_hybrid$BNPR 
+```
+
+Finally, we apply MCMC with sHMC instead of BNPR for speed considerations. We still recommend use of BNPR in single cases of inference. We use 10\% burn-in out of 5,000 total samples for this vignette, but the default is 20,000
+
+```{r}
+sim_MCMC <- suppressWarnings(posterior_beta_coal_MCMC_w_sHMC(sim_exp_tree, nsamp_total=5000))
+  
+```
+
+Then we can plot the results on one graph 
+
+```{r}
+plot_BNPR(BNPR_sim_exp, main=expression(paste('True ', alpha, ': 1.5')))
+lines(BNPR_sim_exp$x, BNPR_sim_exp$effpop975, col='gray20', lwd=2, lty=2)
+lines(BNPR_sim_exp$x, BNPR_sim_exp$effpop025, col='gray20', lwd=2,lty=2)
+lines(BNPR_sim_exp$x, BNPR_block_size$effpop, col='coral1', lwd=2)
+lines(BNPR_sim_exp$x, BNPR_block_size$effpop975, col='coral1', lwd=2, lty=2)
+lines(BNPR_sim_exp$x, BNPR_block_size$effpop025, col='coral1', lwd=2,lty=2)
+lines(BNPR_sim_exp$x, BNPR_hybrid$effpop, col='darkgreen', lwd=2)
+lines(BNPR_sim_exp$x, BNPR_hybrid$effpop025, col='darkgreen', lwd=2, lty=2)
+lines(BNPR_sim_exp$x, BNPR_hybrid$effpop975, col='darkgreen', lwd=2, lty=2)
+lines(sim_MCMC$x, sim_MCMC$effpop, col='royalblue', lwd=2)
+lines(sim_MCMC$x, sim_MCMC$effpop025, col='royalblue', lwd=2, lty=2)
+lines(sim_MCMC$x, sim_MCMC$effpop975, col='royalblue', lwd=2, lty=2)
+traj_vals  <- exp_traj(seq(0,  max(BNPR_sim_exp$grid), by=0.1))
+lines(seq(0, max(BNPR_sim_exp$grid), by=0.1),traj_vals , col='purple', lwd=2)
+legend('topleft', legend=c("True alpha", 'BS MLE', 'Emp. Bayes', 'MCMC', 'Traj'),
+       col=c("black", "coral1", 'darkgreen', 'royalblue', 'purple'), lty=1, cex=0.8, lwd=2)
+
+```
+
+We can also calculate how well each method did in reconstructing $N_e(t)$ by computing the coverage, bias, deviance, and MSE of the inferred trajectories versus the true trajectory. 
+
+```{r}
+bias <- c(bias_new(BNPR_sim_exp, exp_traj)$avg, bias_new(BNPR_block_size, exp_traj)$avg, 
+            bias_new(BNPR_hybrid, exp_traj)$avg, bias_new(sim_MCMC, exp_traj)$avg)
+dev <- c(dev_new(BNPR_sim_exp, exp_traj)$avg, dev_new(BNPR_block_size, exp_traj)$avg, 
+          dev_new(BNPR_hybrid, exp_traj)$avg, dev_new(sim_MCMC, exp_traj)$avg)
+coverage <- c(envelope_new(BNPR_sim_exp, exp_traj)$avg, envelope_new(BNPR_block_size, exp_traj)$avg, 
+              envelope_new(BNPR_hybrid, exp_traj)$avg, envelope_new(sim_MCMC, exp_traj)$avg)
+mse <- c(mse(BNPR_sim_exp, exp_traj)$avg, mse(BNPR_block_size, exp_traj)$avg, 
+         mse(BNPR_hybrid, exp_traj)$avg, mse(sim_MCMC, exp_traj)$avg)
+
+perf_meas <- cbind(coverage, bias, dev, mse)
+rownames(perf_meas) <- c('true', 'block_size_mle', 'hybrid_opt', 'MCMC')
+perf_meas <- as.data.frame(perf_meas) %>% tibble::rownames_to_column(var = "method") %>%
+  pivot_longer(cols=c('coverage', 'bias', 'dev', 'mse'))
+print(perf_meas)
+```
+
+
+## Beyond the Beta-coalescent 
+
+We can also reconstruct the effective population size trajectory of a tree under any Lambda-coalescent by specifying the characteristic measure. The following code reconstructs Figure 9 in our paper. 
+
+```{r}
+data(NY_flu)
+plot(NY_flu, show.tip.label=FALSE)
+axisPhylo()
+
+lambda_pmf <- list(values = c(0.2, 0.7, 0.9,1), probs= c(0.25,0.25,0.25,0.25))
+lambda_trunc_norm <- function(x) {dtruncnorm(x, a=0, b=1, mean = 0, sd = 1)}
+
+BNPR_Beta_1.5_NY_flu <- BNPR_Lambda(NY_flu, alpha_multif = 1.5) 
+BNPR_Lambda_pmf_NY_flu <- BNPR_Lambda(NY_flu, alpha_multif =NULL, lambda_meas = lambda_pmf) 
+BNPR_binary_NY_flu <- BNPR(NY_flu)
+
+lambda_trunc_norm <- function(x) {dtruncnorm(x, a=0, b=1, mean = 0, sd = 1)}
+BNPR_trunc_norm_NY_flu <- BNPR_Lambda(NY_flu, alpha_multif =NULL, lambda_meas = lambda_trunc_norm) 
+
+par(mfrow=c(2,2))
+plot_BNPR(BNPR_binary_NY_flu, main='Kingman Coal')
+plot_BNPR(BNPR_Beta_1.5_NY_flu, main=expression(paste('Beta Coal ', alpha, '=1.5')))
+plot_BNPR(BNPR_Lambda_pmf_NY_flu, main='Discrete measure')
+plot_BNPR(BNPR_trunc_norm_NY_flu, main='Truncated Normal')
+```
+
+ 
