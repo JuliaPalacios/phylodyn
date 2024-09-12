@@ -7,44 +7,42 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+list.of.packages <- c("ape", "TreeTools", "matrixStats","tidyverse","parallel")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
 
-library(ape)
-library(TreeTools)
-library(matrixStats)
-library(tidyverse)
-library(parallel)
+lapply(list.of.packages, library, character.only = TRUE) 
+  
 set.seed(1234)
 ```
 
-This is going to work only after adding stuff to phylodyn I think or else you have to load the function always. 
+## Generating a genealogy from the Beta-coalescent
 
-## Generating a tree from the Beta-coalescent
-
-We can generate a multifurcating tree from the Beta-coalescent which parallels \texttt{rcoal()} in \texttt{ape}. 
+We can generate a multifurcating genealogy with $n=50$ tips from the Beta-coalescent with parameter $\alpha=1.5$ and constant effective population size.This function parallels \texttt{rcoal()} in \texttt{ape}. 
 
 ```{r}
-N <- 50
+n <- 50
 alpha <- 1.5
-sim_tree <- rbeta_coal(N, alpha)
+sim_tree <- rbeta_coal(n, alpha)
 print(sim_tree$Nnode)
 plot(sim_tree, show.tip.label=FALSE)
 ```
 
-We can also generate a tree from a given effective population size trajectory and various sampling times, which parallels \texttt{coalsim()} in \texttt{phylodyn}. 
+The following example generates a heterochronous genealogy with 50 tips distributed according to the Beta-coalescent with $\alpha=1.5$ and variable effective population size trajectory (exponential trajectory) and specified sampling times (25 sequences at time 0 and 25 sequences at time 1). This function parallels \texttt{coalsim()} implemented in \texttt{phylodyn}. 
 
 ```{r}
 sim_exp_tree_list <- beta_coalsim(samp_times=c(0,1), n_sampled = c(25,25), alpha=1.5, traj=exp_traj)
 sim_exp_tree <- generate_newick_multif(sim_exp_tree_list)$newick
 print(sim_exp_tree$Nnode)
-plot(sim_exp_tree, show.tip.label=FALSE)
+plot(ladderize(sim_exp_tree), show.tip.label=FALSE)
 ```
 
 ## Reconstructing effective population size
 
-We expanded the implementation of BNPR methods originally developed in \texttt{phylodyn} for bifurcating trees. One only needs to give the value of $\alpha$, which modifies the coalescent factors in order to run. We run both on the tree above with true $\alpha=1.5$ and plot the inferred $N_e(t)$. 
+We now estimate the variable effectve population size trajectory from a given multifurcating genealogy non-parametrically assuming we know the value of $\alpha$. For our example, we will use the genealogy just generated.
 
 ```{r}
-BNPR_sim_exp <-  BNPR_Lambda(sim_exp_tree, alpha_multif=1.5)
+BNPR_sim_exp <-  BNPR_Lambda(sim_exp_tree,alpha_multif=1.5)
 plot_BNPR(BNPR_sim_exp, traj=exp_traj)
 ```
 
