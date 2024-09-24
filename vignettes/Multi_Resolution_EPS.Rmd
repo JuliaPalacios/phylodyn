@@ -87,7 +87,7 @@ lines(sim_MCMC$x, sim_MCMC$effpop025, col='royalblue', lwd=2, lty=2)
 lines(sim_MCMC$x, sim_MCMC$effpop975, col='royalblue', lwd=2, lty=2)
 traj_vals  <- exp_traj(seq(0,  max(BNPR_sim_exp$grid), by=0.1))
 lines(seq(0, max(BNPR_sim_exp$grid), by=0.1),traj_vals , col='purple', lwd=2)
-legend('topleft', legend=c("True alpha", 'BS MLE', 'Emp. Bayes', 'MCMC', 'Traj'),
+legend('topleft', legend=c("True alpha", 'BS MLE', 'Hybrid', 'MCMC', 'True trajectory'),
        col=c("black", "coral1", 'darkgreen', 'royalblue', 'purple'), lty=1, cex=0.8, lwd=2)
 
 ```
