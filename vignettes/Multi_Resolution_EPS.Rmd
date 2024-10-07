@@ -3,6 +3,10 @@ title: "Effective population size inference under Beta-coalescent"
 author: "Julie Zhang"
 date: "2024-07-20"
 output: html_document
+vignette: >
+  %\VignetteIndexEntry{Multi_Resolution_EPS}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
 ---
 
 ```{r setup, include=FALSE}
