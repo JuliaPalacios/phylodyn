@@ -24,7 +24,7 @@ set.seed(1234)
 
 ## Generating a genealogy from the Beta-coalescent
 
-We can generate a multifurcating genealogy with $n=50$ tips from the Beta-coalescent with parameter $\alpha=1.5$ and constant effective population size.This function parallels \texttt{rcoal()} in \texttt{ape}. 
+We can generate a multifurcating genealogy with $n=50$ tips from the Beta-coalescent with parameter $\alpha=1.5$ and constant effective population size. This function parallels \texttt{rcoal()} in \texttt{ape}. 
 
 ```{r}
 n <- 50
@@ -45,7 +45,7 @@ plot(ladderize(sim_exp_tree), show.tip.label=FALSE)
 
 ## Reconstructing effective population size
 
-We now estimate the variable effectve population size trajectory from a given multifurcating genealogy non-parametrically assuming we know the value of $\alpha$. For our example, we will use the genealogy just generated.
+We now estimate the variable effective population size trajectory from a given multifurcating genealogy non-parametrically assuming we know the value of $\alpha$. For our example, we will use the genealogy just generated.
 
 ```{r}
 BNPR_sim_exp <-  BNPR_Lambda(sim_exp_tree,alpha_multif=1.5)
@@ -69,7 +69,7 @@ sim_alpha_eb <- sim_hybrid$alpha_opt
 BNPR_hybrid <- sim_hybrid$BNPR 
 ```
 
-Finally, we apply MCMC with sHMC instead of BNPR for speed considerations. We still recommend use of BNPR in single cases of inference. We use 10\% burn-in out of 5,000 total samples for this vignette, but the default is 20,000
+Finally, we apply MCMC with sHMC instead of BNPR for speed considerations. We still recommend to use BNPR in single cases of inference. We use 10\% burn-in out of 5,000 total samples for this vignette, but the default is 20,000
 
 ```{r}
 sim_MCMC <- suppressWarnings(posterior_beta_coal_MCMC_w_sHMC(sim_exp_tree, nsamp_total=5000))
