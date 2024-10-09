@@ -28,7 +28,7 @@ print(sim_tree$Nnode)
 plot(sim_tree, show.tip.label=FALSE)
 ```
 
-The following example generates a heterochronous genealogy with 50 tips distributed according to the Beta-coalescent with $\alpha=1.5$ and variable effective population size trajectory (exponential trajectory) and specified sampling times (25 sequences at time 0 and 25 sequences at time 1). This function parallels \texttt{coalsim()} implemented in \texttt{phylodyn}. 
+The following example generates a heterochronous genealogy with 50 tips distributed according to the Beta-coalescent with $\alpha=1.5$ and variable effective population size trajectory (exponential trajectory) with specified sampling times (25 sequences at time 0 and 25 sequences at time 1). This function parallels \texttt{coalsim()} implemented in \texttt{phylodyn}. 
 
 ```{r}
 sim_exp_tree_list <- beta_coalsim(samp_times=c(0,1), n_sampled = c(25,25), alpha=1.5, traj=exp_traj)
