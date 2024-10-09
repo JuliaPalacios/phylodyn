@@ -3,6 +3,10 @@ title: "Effective population size inference under Beta-coalescent"
 author: "Julie Zhang"
 date: "2024-07-20"
 output: html_document
+vignette: >
+  %\VignetteIndexEntry{Multi_Resolution_EPS}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
 ---
 
 ```{r setup, include=FALSE}
@@ -12,7 +16,9 @@ new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"
 if(length(new.packages)) install.packages(new.packages)
 
 lapply(list.of.packages, library, character.only = TRUE) 
-  
+
+library(INLA)
+library(phylodyn)
 set.seed(1234)
 ```
 
@@ -87,7 +93,7 @@ lines(sim_MCMC$x, sim_MCMC$effpop025, col='royalblue', lwd=2, lty=2)
 lines(sim_MCMC$x, sim_MCMC$effpop975, col='royalblue', lwd=2, lty=2)
 traj_vals  <- exp_traj(seq(0,  max(BNPR_sim_exp$grid), by=0.1))
 lines(seq(0, max(BNPR_sim_exp$grid), by=0.1),traj_vals , col='purple', lwd=2)
-legend('topleft', legend=c("True alpha", 'BS MLE', 'Emp. Bayes', 'MCMC', 'Traj'),
+legend('topleft', legend=c("True alpha", 'BS MLE', 'Hybrid', 'MCMC', 'True trajectory'),
        col=c("black", "coral1", 'darkgreen', 'royalblue', 'purple'), lty=1, cex=0.8, lwd=2)
 
 ```

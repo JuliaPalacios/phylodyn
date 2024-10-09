@@ -1,0 +1,54 @@
+---
+title: "Distances between ranked labeled trees"
+author: "Yi-Ting Tsai"
+data: "2024-09-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(phylodyn)
+library(ape)
+```
+
+This vignette demonstrates the calculation of distances between ranked labeled trees, and creates a pairwise distance matrix for 10 trees.
+
+```{r}
+# create a list of trees
+trees_list <- list()
+num_trees <- 10
+n_tips <- 10
+for (i in 1:num_trees) {
+  trees_list[[i]] <- rcoal(n_tips)
+}
+
+# plot one tree
+plot(trees_list[[1]])
+```
+
+```{r}
+# generate A-matrices
+A_list <- list()
+for (i in 1:num_trees) {
+  A_list[[i]] <- gen_Amat(trees_list[[i]])
+}
+
+# print an A-matrix
+print(A_list[[1]])
+```
+
+```{r}
+# create pairwise distance matrix
+alpha <- 0.5
+dmat = matrix(, nrow = num_trees, ncol = num_trees)  
+for (i in 1:num_trees){
+  for(j in 1:i){
+    dmat[i,j] <- label_dist(trees_list[[i]], trees_list[[j]], alpha)
+  }
+}
+tmp <- dmat[lower.tri(dmat)]
+dmat <- t(dmat)
+dmat[lower.tri(dmat)] <- tmp
+print(dmat)
+```
+
