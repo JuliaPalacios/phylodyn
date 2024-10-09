@@ -1,0 +1,65 @@
+---
+title: "Single Lineage Tracing Simulation"
+author: "Julia Palacios, Mackenzie Simper"
+output: rmarkdown::html_vignette
+date: "2024-10-07"
+vignette: >
+  %\VignetteIndexEntry{SLT_Simulation}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+Single Lineage Tracing Simulation
+===================================
+
+We will first simulate a genealogy with 50 tips under the coalescent model with *exp_tra* effective population size.
+
+
+```{r}
+library("ape")
+exp_traj<-function(t){
+  result=rep(0,length(t))
+  result[t<=0.1]<-5
+  result[t>0.1 & t<0.5]<-5*exp(0.5-5*t[t>0.1 & t<0.5]) #50 times smaller
+  result[t>=0.5]<-0.6766764
+  return(result)
+}
+
+
+simul1<-coalsim(samp_times = 0, n_sampled = n, traj = exp_traj,method="tt",val_upper=11)
+mytree<-generate_newick((simul1))$newick
+#plot(mytree,show.tip.label=FALSE)
+#axisPhylo()
+#summary<-coalescent.intervals(mytree)
+#treelength<-sum(summary$lineages*summary$interval.length)
+```
+
+We will now simulate a barcode with $S=3$ target sites evolving on the tree just generated according to a CTMC with rate 1 at individual sites and rate of 0.5 of overlapping mutations. All rates are specified in the $Q$ matrix. We further assume there are $M=20$ allele types. 
+
+```{r}
+
+#source("new_functions.R")
+#source("all_functions.R")
+#source("phylotime.R")
+library("ape")
+library("phylodyn")
+library("hash")
+set.seed(123)
+S = 3 #number of cut sites
+
+theta = matrix(1, nrow = S, ncol = S)
+#set different rates for multi-cut
+theta[1, 2] <-theta[1, 3] <-theta[2,3]<- 0.5
+
+sdata<-simulate_SLData(numSim=1,mytree,S=3,M=20,theta=theta)
+
+print(sdata)
+ 
+
+```
+
+
+TODO: I need a description of the output. The first list corresponds to mutation states. The $i$-th row corresponds to ?. The second list corresponds to..?
+ In practice we would only obtain data at the tips. This information corresponds to?  Q. If there are 13 target sites and a mutation that involves sites 1 to 13, what would be the allele type? 1314:x ? I guess since the first number < second number, there is no room for confusion.
+
+
