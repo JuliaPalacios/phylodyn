@@ -4,17 +4,16 @@
 #library(phylodyn)
 #library(stringr)
 
-
-#Tree is an ape tree
-#states is matrix storing possible mutation states
-#Q is rate matrix for mutation states
-#M is a symmetric matrix which stores the number of alleles per site or site group 
-#    M(i, i) is the number of alleles at site i, M(i, j) is the number of alleles from a simultaneous cut
-#    at sites i, j ..... In principle these numbers could be the same and we could input a single parameter,
-#    but we will leave it as matrix for full generality. 
-#This function simulates allele data for all nodes of the tree (the leaves are the first n rows), by starting with the state (0, 0, ...0)
-#at the root and simulating the Markov mutation process down the tree. It returns a list where the first
-#entry is the matrix of mutation states for the nodes, second entry is matrix of allele states. 
+#' Simulation of alleles at S target sites evolving along the tree with M types
+#' @description This function simulates alleles for all nodes according to a CTMC
+#' 
+#' @param numSim number of simulated datasets
+#' @param tree genealogical tree in ape format 
+#' @param S number of target sites
+#' @param M number of different alleles
+#' @param theta a matrix of mutation rates
+#' It returns a list where the first
+#' entry is the matrix of mutation states for the nodes, second entry is matrix of allele states. 
 simulate_SLData<-function(numSim=1,tree,S=2,M=4,theta=diag(1,S)){
   M = matrix(M, nrow = S, ncol = S) #allele types
   states = state_space(S)
