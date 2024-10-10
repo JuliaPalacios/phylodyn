@@ -30,6 +30,90 @@ estimate_mu<-function(data,t){
   
 }
 
+#' Reformats data from 10x to be used with our method
+#' @param data a table with the following columns: cellBC, intBC, lineageGrp, Allele,r1,r2,..
+#' @param S number of target sites 
+#' Although the column Allele is not used, the function assumes target information starts in column 5. 
+#' 
+#' @returns Dlist a list of cells x targets of alleles. One list per intBC 
+reformat_slt<-function(data,S){
+  
+  intBCS = unique(data$intBC) #For datsets with multiple intBCs
+  #Make a dictionary for cellBCs, to keep track across intBCs
+  h = hash()
+  cellBCS = unique(data$cellBC)
+  for (i in 1:length(cellBCS)) {
+    h[[cellBCS[i]]] = i
+  }
+  n = length(cellBCS)
+  
+  
+  Dlist = list()
+  
+  for (j in 1:length(intBCS)) {
+    #filter to one intBC
+    datanew = data[which(data$intBC == intBCS[j]), ]
+    #datanew = datanew[, 3:6] #14:17]
+    rownames(datanew) <- NULL 
+    # n = nrow(datanew)
+    
+    #----GET D for this intBC------------
+    
+    #the rows correspond to the cellBC indices stored in the hash table
+    #if a cellBC does not have this intBC, just -1 in that row
+    D = matrix(-1, nrow = n, ncol = S)
+    #Keep track of how many unique alleles we see of each type
+    numAlleles = matrix(0, nrow = S, ncol = S)
+    
+    uniqueA = list()
+    for (s in 1:S) {
+      edits = c()
+      for (k in 1:nrow(datanew)) { #urg, must be a better way
+        if (!grepl("None", datanew[k, 4 + s], fixed = TRUE)) { #WARNING: change index of datanew
+          edits = c(edits,  unlist(datanew[k, 4 + s], use.names = FALSE))
+        }
+      }
+      # temp = datanew[which( !grepl( "None", c(datanew[, 3 + s]), fixed = TRUE)), 3 + s] 
+      uniqueA[[s]] <- unique(edits)
+    }
+    
+    #loop through each cell
+    for (i in 1:nrow(datanew)) {
+      c = h[[datanew$cellBC[i]]] #the index of the cell
+      allele = unlist(datanew[i, 5:(5+S) ], use.names = FALSE) #WARNING: CHANGE THIS depending on ALLELE COLUMNS; 4:7 for daisy data, 4:6 for Cassio data
+      #Use 4:7 for filtered Nick data, 4:6 for cassio data
+      if (any(is.na(allele))) { break } #skip if the cell happens to have na?
+      s = 1
+      while (s <= S) {
+        if (!grepl( "None", allele[s], fixed = TRUE))  { #there is an edit
+          #check if this is an overlap, or a single site
+          temp = which(allele == allele[s])
+          if (length(temp) > 1 ) { #it was an overlap
+            r = max(temp)
+            
+            #Note: this formatting only works if we assume number of sites < 10
+            D[c, s:r] = rep(paste(c(s*10 + r, which(uniqueA[[s]] == allele[s])), collapse = ":"), length(temp))
+            s = r + 1
+          }
+          else {
+            D[c, s] = paste(c(s, which(uniqueA[[s]] == allele[s])), collapse = ":")
+            s = s + 1
+          }
+        }
+        else { 
+          D[c, s] = "0" #indicating "None" mutation
+          s = s + 1 }
+      }
+    }
+    
+    Dlist[[j]] <- D
+  }
+  return(Dlist)
+}
+
+
+
+
 ##counts the number of observed mutations from the matrix D, which stores alleles of data on tips
 #(Note: we don't care about the actual alleles here, just the mutation state)
 #Returns an SxS matrix where S[i,i] is number of cells with a single mutation in site i,
