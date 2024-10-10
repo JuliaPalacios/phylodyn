@@ -59,7 +59,10 @@ print(sdata)
 ```
 
 
-TODO: I need a description of the output. The first list corresponds to mutation states. The $i$-th row corresponds to ?. The second list corresponds to..?
- In practice we would only obtain data at the tips. This information corresponds to?  Q. If there are 13 target sites and a mutation that involves sites 1 to 13, what would be the allele type? 1314:x ? I guess since the first number < second number, there is no room for confusion.
+*simulate_SLData* returns a list of length $numSim$ where each entry contains the results from an independent simulation of the mutation process on the tree. Each entry in the list is a list with with two matrices of size $(2n - 1) \times S$.  Rows corresponds to node in the tree and columns correspond to sites. Leaves are labeled $1, 2, \dots, n$ and interior nodes are $n + 1, \dots 2n - 1$, with the root labeled $n + 1$. 
 
+1. The first matrix stores the mutation states, which are the "lumped" mutations without specific allele labels. For each site $s$, an entry $0$ means there is no mutation, the site is "active"; $1$ means there was a single-cut at site $s$; and $r+1$ means there was a simultaneous cut that started at site $r \le s$.
 
+2. The second matrix stores the specific allele states. Again, $0$ denotes an active site with no mutation; $s:b$ denotes a mutation labeled $b$ from a single-cut at site $s$ and $rs:b$ denotes a mutation labeled $b$ that overlaps from sites $r < s$. For each site, the number $b$ is sampled randomly from $1$ to $M$.
+
+For example, $(0, 2:3, 35:1, 35:1, 35:1)$ means there is no mutation in site $1$, a single mutation in site $2$, and the same mutation in sites $3$ through $5$ from a simultaneous cut. The corresponding mutation state would be $(0, 1, 4, 4, 4)$.
