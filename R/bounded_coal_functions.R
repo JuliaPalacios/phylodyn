@@ -12,18 +12,21 @@
 #' @return grid and Ne estimates
 #' @export
 MLE_BoundCoal<-function(data,lengthout=5,bound,eps=.02,eta=.01){
+  
   if (class(data) == "phylo") {
     phy <- summarize_phylo(data)
+    n<-data$Nnode+1
   }
   else if (all(c("coal_times", "samp_times", "n_sampled") %in% 
                names(data))) {
     phy <- with(data, list(samp_times = samp_times, coal_times = coal_times, 
                            n_sampled = n_sampled))
+    n<-n_sampled
   }  
-  grid_bds<-range(0, bound) #range(c(coal_times,samp_times))
+  grid_bds<-range(0, bound+.0001) #range(c(coal_times,samp_times))
   grid = seq(grid_bds[1],grid_bds[2], length.out = lengthout)
-  lik_init = phylodyn:::coal_lik_init(samp_times = c(0), n_sampled = n, 
-                                      coal_times = coal_times1, grid=grid)
+  lik_init = phylodyn:::coal_lik_init(samp_times = phy$samp_times, n_sampled = phy$n_sampled, 
+                                      coal_times = phy$coal_times, grid=grid)
   f_init = rep(0, lik_init$ng)
   eta = 0.01
   eps = 0.02

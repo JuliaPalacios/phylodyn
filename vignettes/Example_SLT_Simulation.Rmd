@@ -1,0 +1,109 @@
+---
+title: "Example of SLT inference from simulation"
+author: "Julia Palacios, Mackenzie Simper"
+output: rmarkdown::html_vignette
+date: "2024-10-07"
+vignette: >
+  %\VignetteIndexEntry{Example_SLT_Simulation}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+Estimation of mutation rate
+===================================
+
+We will first simulate a genealogy with 50 tips under the coalescent model with *exp_tra* effective population size.
+
+
+```{r}
+library("ape")
+n<-50
+exp_traj<-function(t){
+  result=rep(0,length(t))
+  result[t<=0.1]<-5
+  result[t>0.1 & t<0.5]<-5*exp(0.5-5*t[t>0.1 & t<0.5]) #50 times smaller
+  result[t>=0.5]<-0.6766764
+  return(result)
+}
+
+
+simul1<-coalsim(samp_times = 0, n_sampled = n, traj = exp_traj,method="tt",val_upper=11)
+mytree<-generate_newick((simul1))$newick
+library("phylodyn")
+library("hash")
+set.seed(123)
+S = 3 #number of cut sites
+theta = matrix(1, nrow = S, ncol = S)
+#set different rates for multi-cut
+theta[1, 2] <-theta[1, 3] <-theta[2,3]<- 0.5
+sdata<-simulate_SLData(numSim=1,mytree,S=3,M=20,theta=theta)[[1]][[2]][1:n,]
+
+```
+
+We now estimate the mutation rates by method of moments
+
+```{r}
+t<-coalescent.intervals(mytree)$total.depth
+mu_hat<-estimate_mu(sdata,t)
+print(mu_hat)
+
+
+```
+
+Estimation of coalescent times 
+=====================================
+
+We will first simulate 5 datasets with the same mutation rates as before but with a smaller genealogy of $n=15$ cells:
+
+```{r}
+n<-5
+simul1<-coalsim(samp_times = 0, n_sampled = n, traj = exp_traj,method="tt",val_upper=11)
+mytree<-generate_newick((simul1))$newick
+
+t<-coalescent.intervals(mytree)$total.depth
+bigdata<-simulate_SLData(numSim=5,mytree,S=3,M=20,theta=theta)
+##just observed alleletypes
+numSim=10
+datalist<-list()
+for (j in 1:numSim){
+  datalist[[j]]<-bigdata[[j]][[2]][1:n,]
+}
+
+```
+
+We will now assume known mutation rates and tree topology and will estimate coalescent times and $Ne(t)$. In this example we assume all datasets are generated with the same mutation rates
+
+```{r}
+thetas<-list()
+for (j in 1:numSim){
+  thetas[[j]]<-theta
+}
+library("phangorn")
+library("parallel")
+times_estimates<-inference_times(Dlist=datalist, thetas=thetas, M = 20,tree=mytree)
+plot(cumsum(coalescent.intervals(mytree)$interval.length),cumsum(times_estimates$mle_times))
+  
+```
+
+
+
+Estimation of topology and times
+==============================================================
+
+```{r}
+
+all_estimates<-inference_all(Dlist=datalist, t0=t, thetas=thetas, M = 20)
+plot(cumsum(coalescent.intervals(mytree)$interval.length),cumsum(times_estimates$mle_times))
+  
+```
+
+Estimation of Ne
+==============================================
+
+```{r}
+bound<-t
+Ne_est<-MLE_BoundCoal(data=all_estimates$tree,lengthout=4,bound=t,eps=.02,eta=.01)
+Ne_oracle<-BNPR(mytree,lengthout=4)
+plot_BNPR(Ne_oracle)
+points(Ne_est$x,Ne_est$effpop,type="S",col="red")
+```

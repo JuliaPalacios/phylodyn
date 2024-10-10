@@ -1,0 +1,95 @@
+---
+title: "MLE estimation of Ne under bounded coalescent"
+author: "Mackenzie Simper, Julia Palacios"
+date: "2024"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Bounded_Coalescent_MLE}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+Simulation under bounded coalescent
+=====================================
+
+```{r}
+library("ape")
+set.seed(113)
+Nsim<-1000
+n<-10
+bound<-1.0
+rej<-0
+avg_times<-rep(0,n-1) #average intercoal times
+total_times<-rep(0,n-1)
+for (j in 1:Nsim){
+  tree_s<-rcoal(n)
+  #times_s<-tree_s$edge.length[1]
+  times_s<-coalescent.intervals(tree_s)
+  if (times_s$total.depth>bound){
+    rej<-rej+1
+  }else{
+    avg_times<-times_s$interval.length+avg_times
+    one_simul<-times_s
+  }
+  total_times<-total_times+times_s$interval.length
+}
+
+
+
+#acceptance=bound probability
+prob<-1-(rej/Nsim)
+#formula<-1+0.5*exp(-3*bound)-1.5*exp(-bound)
+print(prob)
+#print(formula)
+
+#formula<-1-exp(-2*bound)-1.5*exp(-bound)+(1.5)*exp(-3*bound)
+#(1/3)*exp(-3*bound)-(3/2)*exp(-bound)
+avg_times<-avg_times/(Nsim-rej)
+total_times<-total_times/Nsim
+
+avg_times/total_times
+
+##diference between averages
+#plot(avg_times,ylim=c(0,2))
+#points(total_times,col="red")
+#points(one_simul$interval.length,col="green") #a single realization
+#print(prob)
+#print(avg_times/total_times)
+#plot(total_times/avg_times)
+##There is a bias that needs to be corrected.
+library("phylodyn")
+#par(mfrow=c(1,3))
+res1<-BNPR(list(coal_times=cumsum(avg_times),samp_times=0,n_sampled=n))
+#plot_BNPR(res1,main="Mean simulation from BC")
+#abline(h=1,col="red")
+
+res2<-BNPR(list(coal_times=cumsum(total_times),samp_times=0,n_sampled=n))
+#plot_BNPR(res2,main="Simulation from Coal")
+#abline(h=1,col="red")
+
+res3<-BNPR(list(coal_times=cumsum(one_simul$interval.length),samp_times=0,n_sampled=n))
+#plot_BNPR(res3,main="Simulation from BC")
+#abline(h=1,col="red")
+
+coal_times1<-cumsum(one_simul$interval.length)
+####Inference of Ne with Hamiltonian Monte-Carlo
+#source("~/Documents/cancer/cancer/New_Code/all_functions.R")
+#source("all_functions.R")
+
+#dataset can be a phylogenetic tree or a list, we will do a list
+
+#-----Mackenzie exploring-------
+n<-length(coal_times1)+1
+ngrid = 8
+
+Res_BC<-MLE_BoundCoal(data=list(coal_times=coal_times1,samp_times=c(0),n_sampled=n),lengthout=ngrid,bound=bound,eps=.02,eta=.01)
+
+plot(Res_BC$grid,Res_BC$effpop,type="S")
+}
+
+
+
+
+
+
+```
