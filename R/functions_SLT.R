@@ -20,7 +20,7 @@ estimate_mu<-function(data,t){
   #The next entries are the entries of the upper-triangular entries in matrix theta
   #theta0 =  c(1, 1, 1, 2, 2, 2) 
   ##Initial value of theta for optimization
-  theta0<-rep(1,(S*(S+1)))*.01
+  theta0<-rep(1,(S*(S+1)/2))*.01
   states_matrix<-state_space_matrix(S)
   #probs_function computes the sum of (observed - expected)^2 for each mutation type
   est_theta1 = optim(theta0, fn = probs_function,  observedMuts = B, t = t, S = S, 
