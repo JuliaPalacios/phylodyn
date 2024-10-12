@@ -10,6 +10,7 @@
 #' It returns a vector where the first S values are individual target mutations, followed by 
 #' S(S-1)/2 off-diagonal(by row)
 estimate_mu<-function(data,t){
+  n<-nrow(data)
   S<-ncol(data)
   states = state_space(S)
   lumpedD<-t(apply(data,1,lumped_state))
