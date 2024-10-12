@@ -26,7 +26,12 @@ estimate_mu<-function(data,t){
   est_theta1 = optim(theta0, fn = probs_function,  observedMuts = B, t = t, S = S, 
                      states = states, states_matrix = states_matrix, lower = rep(0, length(theta0)), method = "L-BFGS-B")
   
-  return(est_theta1$par)
+  theta<-matrix(0,nrow=S,ncol=S)
+  diag(theta)<-est_theta1$par[1:S]
+  theta[lower.tri(theta,diag=FALSE)]<-est_theta1$par[-c(1:S)]
+  theta=t(theta)
+  
+  return(theta)
   
 }
 
@@ -80,7 +85,7 @@ reformat_slt<-function(data,S){
     #loop through each cell
     for (i in 1:nrow(datanew)) {
       c = h[[datanew$cellBC[i]]] #the index of the cell
-      allele = unlist(datanew[i, 5:(5+S) ], use.names = FALSE) #WARNING: CHANGE THIS depending on ALLELE COLUMNS; 4:7 for daisy data, 4:6 for Cassio data
+      allele = unlist(datanew[i, 5:(5+S-1) ], use.names = FALSE) #WARNING: CHANGE THIS depending on ALLELE COLUMNS; 4:7 for daisy data, 4:6 for Cassio data
       #Use 4:7 for filtered Nick data, 4:6 for cassio data
       if (any(is.na(allele))) { break } #skip if the cell happens to have na?
       s = 1
@@ -771,7 +776,7 @@ pairwise_prob_wrapper <- function(r, T, a1, a2, a1_lumped, a2_lumped,pa1,pa2, st
 }
 
 
-optim_for_par<-function(index,cell_list,parent_list,T,r0,states,states_matrix, eigenQlist,T_problist, Dlist, M, mu_list){
+optim_for_par<-function(index,cell_list,parent_list,t,r0,states,states_matrix, eigenQlist,T_problist, Dlist, M, mu_list){
 
   a1_lumped = cell_list[[index[1]]][[1]]
   a1 = cell_list[[index[1]]][[2]]
@@ -780,13 +785,13 @@ optim_for_par<-function(index,cell_list,parent_list,T,r0,states,states_matrix, e
   a2 = cell_list[[index[2]]][[2]]
   pa2 = parent_list[[index[2]]]
 
-  mle_t = optim(r0, fn = pairwise_prob_wrapper, T = T, a1 = a1, a2 = a2, a1_lumped = a1_lumped, a2_lumped = a2_lumped, pa1=pa1,pa2=pa2,
+  mle_t = optim(r0, fn = pairwise_prob_wrapper, T = t, a1 = a1, a2 = a2, a1_lumped = a1_lumped, a2_lumped = a2_lumped, pa1=pa1,pa2=pa2,
                 states = states, states_matrix = states_matrix,
                 eigenQlist = eigenQlist, T_problist = T_problist, D = Dlist, M = M, approx = 1, mu_list = mu_list, method = "CG") #BFGS
 
   #Go back from r to t
   r = mle_t$par
-  mles = T*1/(1 + exp(-r)) + runif(1, 0, 0.000001)
+  mles = t*1/(1 + exp(-r)) + runif(1, 0, 0.000001)
   return(mles)
 }
 
@@ -1010,7 +1015,7 @@ phylotime_tree <- function(Dlist, haplist, Ti, states, states_matrix,
   
   index<-t(combn(1:n, 2))
   indexlist<-as.list(data.frame(t(index)))
-  mles<-mclapply(indexlist,optim_for_par,cell_list=cell_list,parent_list=parent_list,T=Ti,r0=r0,states = states,states_matrix = states_matrix, eigenQlist = eigenQlist, T_problist=T_problist,Dlist=Dlist,M=M,mu_list=mu_list) 
+  mles<-mclapply(indexlist,optim_for_par,cell_list=cell_list,parent_list=parent_list,t=Ti,r0=r0,states = states,states_matrix = states_matrix, eigenQlist = eigenQlist, T_problist=T_problist,Dlist=Dlist,M=M,mu_list=mu_list) 
   for (i in 1:nrow(index)){
     mlem[index[i,1],index[i,2]]<-mlem[index[i,2],index[i,1]]<-mles[i][[1]]
   }
@@ -1079,6 +1084,86 @@ matching <- function(tree) {
   return(match)
 }
 
+
+
+
+#To keep consistent, rename the mutations in an overlap
+#I will name the mutation (start + 1), where start is the
+#leftmost index.
+#This takes as output the list from the previous function
+#and returns a matrix
+relabel <- function(states) {
+  L = length(states) #states is a list
+  new = matrix(0, nrow = L, ncol = length(states[[1]]))
+  
+  for (i in 1:L) {
+    s = states[[i]]
+    newS = s
+    if (max(s) > 1) {
+      for (k in 2:max(s)) {
+        overlap = which(s == k)
+        first = overlap[1]
+        newS[overlap] <- first + 1
+      }
+    }
+    new[i, ]  = newS
+  }
+  return(new)
+}
+
+
+#turns the list into a matrix, and relables
+#returns a matrix
+state_space_matrix <- function(S) {
+  states = state_space_list(S)
+  return(relabel(states))
+}
+library(expm)
+
+#Generates the rate matrix for the list of states
+#theta is an SxS (S is numer of states) matrix, with theta[i, j] the rate of simultaneous
+#cut at site i and j (could be theta[i, i] + theta[j, j] or more general), and theta[i, i] the rate of single cut at site i
+Q_matrixSL <- function(states, theta) {
+  L = nrow(states)
+  S = ncol(states)
+  M = matrix(0, nrow = L, ncol = L)
+  
+   for (i in 1:L) {
+    s1 = states[i, ]
+    active = which(s1 == 0)
+    if (length(active) > 0) {
+      #First, all possible single mutations
+      for (k in 1:length(active)) {
+        site = active[k]
+        s2 = s1
+        s2[site] = 1
+        #This tells me which index the new state corresponds to,
+        #so I can update the appropriate entry in the rate matrix
+        #(Like a cheat version of a dictionary)
+        j = which(apply(states, 1, function(x) all.equal(x[1:S], s2)) == "TRUE")
+        M[i, j] = theta[site, site]  
+        
+        if (length(active) - k > 0) {
+          #now all pairs of mutations
+          for (l in (k+1):length(active)) {
+            site2 = active[l]
+            s2 = s1
+            #This mutation assignment is consistent with what we did before
+            s2[site:site2] = site + 1 #we should always have site2 > site
+            j = which(apply(states, 1, function(x) all.equal(x[1:S], s2)) == "TRUE")
+            M[i, j] = theta[site, site2]
+          }
+        }
+      }
+    }
+  }
+  
+  #Add negatives along diagonal so rows sum to 1
+  rows = rowSums(M)
+  diagonal = diag(rows, nrow = nrow(M), ncol = ncol(M))
+  M = M - diagonal
+  return(M)
+}
 
 
 #branchlengths is a vector of length 2*n-2, where the ith entry is the length of the edge with child i
@@ -1836,6 +1921,50 @@ inference_times <- function(Dlist, thetas, M = 20,tree) {
   return(result)
 }
 
+state_space <- function(S) {
+  states = state_space_list(S)
+  states = relabel(states) #matrix
+  h = hash()
+  for (i in 1:nrow(states)) {
+    state = paste(states[i, ], collapse = "")
+    h[[state]] = i
+  }
+  
+  return(h)
+}
+
+
+#Returns a list of the lumped state-space: the possible
+#vectors of length S, where 0 indicates no mutation,
+#1 indicates mutation just at that site, and larger numbers
+#are mutations that are shared between multiple adjacent sites
+#S is the number of sites
+state_space_list <- function(S) {
+  #recursive function
+  if (S == 1) {
+    return(list(c(1), c(0)))
+  }
+  else {
+    SS_1 = state_space_list(S-1)
+    
+    new = list()
+    for (state in SS_1) {
+      new[[length(new) + 1]] = c(1, state)
+      new[[length(new) + 1]] = c(0, state)
+      
+      if (state[1] == 1) { #can merge
+        m = max(state) + 1
+        new[[length(new) + 1]] = c(m, m, state[-1])
+      }
+      if (state[1] > 1) { #1 is already part of an overlap, merge with that
+        new[[length(new) + 1]] = c(state[1], state)
+      }
+      
+    }
+    return(new)
+  }
+}
+
 #' MLE estimation of topology and coalescent times 
 #' @param Dlist a list  per barcode, of alleles. Each column is a target site
 #' @param t0 time to the most recent common ancestor
@@ -1851,7 +1980,7 @@ inference_times <- function(Dlist, thetas, M = 20,tree) {
 #'.....1) Infers rates for each intBC (NOT assumed to be the same), if thetas is not input
 #'.....2) Gets MLE upgma tree + initial branchlengths
 #'.....3) Gradient ascent for branch lengths
-inference_all <- function(Dlist, t0, thetas, M = 20) {
+inference_all <- function(Dlist, t0, thetas, M = 20,mu_list=NULL) {
   
   numIntBC = length(Dlist)
   n = nrow(Dlist[[1]])
