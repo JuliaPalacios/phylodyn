@@ -325,7 +325,7 @@ gradient <- function(p, q, Qnew) {
 #So note that this will not be a complete rate matrix (the rows won't sum to 0),
 #it just stores the rates specifically for the alleles
 #which have non-zero probaiblity in the likelihood
-Q_alleles <- function(alleles, eigenQ, states, M, T_prob) {
+Q_alleles <- function(alleles, Q, eigenQ, states, M, T_prob) {
   m = nrow(alleles)
   Qnew = matrix(0, nrow = m, ncol = m)
   
@@ -1299,7 +1299,7 @@ gradient_ascent_intercoaltimes_adagrad <- function(pairs, D, hap, ict, eta, eps,
       starting = pq_vectors(currD, currhap, pairs, currB, eigenQ[[i]], states, states_matrix, M, approx, T_prob[[i]], mu = mu)
       print(i)
       alleles = starting[[1]]
-      Qnew = Q_alleles(alleles, eigenQ[[i]], states, M,T_prob[[i]])
+      Qnew = Q_alleles(alleles, Q[[i]], eigenQ[[i]], states, M,T_prob[[i]])
       
       Qalleles[[i]] = Qnew
       p = starting[[2]]
@@ -1318,7 +1318,7 @@ gradient_ascent_intercoaltimes_adagrad <- function(pairs, D, hap, ict, eta, eps,
   else {
     starting = pq_vectors(D, hap, pairs, currB, eigenQ, states, states_matrix, M, approx, T_prob, mu = mu_list)
     alleles = starting[[1]]
-    Qnew = Q_alleles(alleles, eigenQ, states, M,T_prob)
+    Qnew = Q_alleles(alleles, Q, eigenQ, states, M,T_prob)
     p = starting[[2]]
     q = starting[[3]]
     
@@ -1551,7 +1551,7 @@ gradient_ascent_intercoaltimes_adagrad2 <- function(pairs, Dlist, haplist, cell_
       starting = pq_vectors2(currD, hap=currhap, currindex=currindex, cell_list=cell_list, parent_list=parent_list, pairs=pairs, edge_lengths=currB, eigenQ=eigenQlist[[i]], states=states, states_matrix=states_matrix, M=M, approx=approx, T_prob=T_problist[[i]], mu = mu)
       print(i)
       alleles = starting[[1]]
-      Qnew = Q_alleles(alleles, eigenQlist[[i]], states, M,T_problist[[i]])
+      Qnew = Q_alleles(alleles, Qlist[[i]],eigenQlist[[i]], states, M,T_problist[[i]])
       
       Qalleles[[i]] = Qnew
       p = starting[[2]]
@@ -1570,7 +1570,7 @@ gradient_ascent_intercoaltimes_adagrad2 <- function(pairs, Dlist, haplist, cell_
   else {
     starting = pq_vectors(Dlist, haplist, pairs, currB, eigenQlist, states, states_matrix, M, approx, T_problist, mu = mu_list)
     alleles = starting[[1]]
-    Qnew = Q_alleles(alleles, eigenQlist, states, M,T_problist)
+    Qnew = Q_alleles(alleles, Qlist, eigenQlist, states, M,T_problist)
     p = starting[[2]]
     q = starting[[3]]
     
