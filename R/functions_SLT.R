@@ -1902,7 +1902,7 @@ inference_times <- function(Dlist, thetas, M = 20,tree) {
   #start = coalescent.intervals(tree)$interval.length
   start = rep(1, n-1) + runif(n-1, min = -0.2, max = 0.2)
   #start = 1/choose(seq(n,2),2)
-  start = start*(t/sum(start))
+  start = start*(t0/sum(start))
   #constrained gradient ascent 
   ga_result = gradient_ascent_intercoaltimes_adagrad(pairs, D = Dlist, hap = haplist, ict = start, eta = eta, eps = eps, Q = Q_list, eigenQ = eigenQ_list, 
                                                      states_matrix = states_matrix, states = states, M = M, T = t0, approx=1, 
