@@ -1913,9 +1913,9 @@ inference_times <- function(Dlist, thetas, M = 20,tree) {
   #Package all results
   mle_times = ga_result[[2]]
   coal_times = cumsum(mle_times)
-  final_tree = tree_from_pairs(pairs, coal_times)
+  final_tree = phylodyn:::tree_from_pairs(pairs, coal_times)
   
-  result = list(tree = final_tree, inital_ll = pt_result$loglik, initial_times = start,
+  result = list(tree = final_tree, 
                 curr_ll = log(ga_result[[1]][length(ga_result[[1]])]), mle_times = mle_times,
                 thetas = thetas)
   

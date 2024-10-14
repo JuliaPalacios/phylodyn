@@ -17,6 +17,8 @@ We will first simulate a genealogy with 50 tips under the coalescent model with 
 
 ```{r}
 library("ape")
+library("phylodyn")
+library("expm")
 n<-50
 exp_traj<-function(t){
   result=rep(0,length(t))
@@ -29,7 +31,6 @@ exp_traj<-function(t){
 
 simul1<-coalsim(samp_times = 0, n_sampled = n, traj = exp_traj,method="tt",val_upper=11)
 mytree<-generate_newick((simul1))$newick
-library("phylodyn")
 library("hash")
 set.seed(123)
 S = 3 #number of cut sites
@@ -61,9 +62,10 @@ simul1<-coalsim(samp_times = 0, n_sampled = n, traj = exp_traj,method="tt",val_u
 mytree<-generate_newick((simul1))$newick
 
 t<-coalescent.intervals(mytree)$total.depth
-bigdata<-simulate_SLData(numSim=5,mytree,S=3,M=20,theta=theta)
+numSim=5
+bigdata<-simulate_SLData(numSim=numSim,mytree,S=3,M=20,theta=theta)
 ##just observed alleletypes
-numSim=10
+
 datalist<-list()
 for (j in 1:numSim){
   datalist[[j]]<-bigdata[[j]][[2]][1:n,]
