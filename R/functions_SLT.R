@@ -1811,7 +1811,7 @@ decompose_branches <- function(pairs) {
 #' @return a vector of inter-coalescent times 
 #' 
 #' 
-inference_times <- function(Dlist, thetas, M = 20,tree) {
+inference_times <- function(Dlist, thetas, M = 20,tree, mu_list = NULL) {
   
   numIntBC = length(Dlist)
   n = nrow(Dlist[[1]])

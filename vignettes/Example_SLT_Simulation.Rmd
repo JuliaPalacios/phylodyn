@@ -82,7 +82,7 @@ for (j in 1:numSim){
 }
 library("phangorn")
 library("parallel")
-times_estimates<-inference_times(Dlist=datalist, thetas=thetas, M = 20,tree=mytree)
+times_estimates<-inference_times(Dlist=datalist, thetas=thetas, M = 20,tree=mytree,mu_list=NULL)
 plot(cumsum(coalescent.intervals(mytree)$interval.length),cumsum(times_estimates$mle_times))
   
 ```
