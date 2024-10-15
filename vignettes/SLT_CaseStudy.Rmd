@@ -1,0 +1,84 @@
+---
+title: "Cas12 daisy data"
+author: "Mackenzie Simper, Julia Palacios"
+date: "2024-10-10"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Cas12 daisy data}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+This vignette shows a case study of single lineage tracing after 7 days. The input datafile "/data/d7_rep1". We first only keep the alleles with higher frequency per cell. In this case we have 86 cells.
+
+```{r}
+library(phylodyn)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(hash)
+library(expm)
+library(parallel)
+library(phangorn)
+data1<-read.csv("https://raw.githubusercontent.com/JuliaPalacios/phylodyn/refs/heads/master/data/d7_rep1",sep=",",header=TRUE)
+
+#For each (cellBC, intBC), multiple alleles can be observed
+#We take the most common occurrence (of the entire allele -- all sites together)
+data1 <- data1 %>%
+  mutate(allele = paste(r1, r2, r3, r4)) %>% #concatenate sites together to get overall allele
+  group_by(cellBC, intBC,  lineageGrp) %>%
+  summarise(allele_new = names(sort(table(allele),decreasing=TRUE)[1])) %>% #this code finds the most common allele in the group
+  mutate(r1 = strsplit(allele_new, split = " ")[[1]][1], r2 = strsplit(allele_new, split = " ")[[1]][2], #split apart into sites again
+         r3 = strsplit(allele_new, split = " ")[[1]][3], r4 = strsplit(allele_new, split = " ")[[1]][4]) %>%
+  filter(!grepl("NC", allele_new, fixed = TRUE)) #3 entries have NC only in one site, I think it's like NA??
+print(nrow(data1))
+
+```
+
+We now transform the data into the format needed for our method as follows
+
+```{r}
+S<-4 #number of target sites
+data1a<-reformat_slt(data1,S)
+```
+
+data1a now consists of 86 cells at 4 target sites with some newly coded "allelles". We will now estimate mutation rates:
+
+```{r}
+t<-7 #on the conservative side, this could as well be 6
+mu_hat<-estimate_mu(data1a[[1]],t)
+
+print(mu_hat)
+print(mu_hat)
+           [,1]        [,2]       [,3]       [,4]
+[1,] 0.01969114 0.002112431 0.00000000 0.01613936
+[2,] 0.00000000 0.049462075 0.00000000 0.00000000
+[3,] 0.00000000 0.000000000 0.02871632 0.00000000
+[4,] 0.00000000 0.000000000 0.00000000 0.10592879
+
+```
+
+For this dataset, we estimate positive rates for single sites and cross-sites 1-2 and 1-4. All other rates are estimated to be 0.
+
+```{r}
+thetas<-list()
+thetas[[1]]<-mu_hat
+
+all_estimates<-inference_all(Dlist=data1a, t0=t, thetas=thetas, M = 20)
+plot(cumsum(coalescent.intervals(mytree)$interval.length),cumsum(times_estimates$mle_times))
+
+```
+
+
+
+
+Estimation of Ne
+==============================================
+
+```{r}
+bound<-t
+Ne_est<-MLE_BoundCoal(data=all_estimates$tree,lengthout=4,bound=t,eps=.02,eta=.01)
+Ne_oracle<-BNPR(mytree,lengthout=4)
+plot_BNPR(Ne_oracle)
+points(Ne_est$x,Ne_est$effpop,type="S",col="red")
+```
