@@ -220,36 +220,28 @@ probs_function <- function(theta, observedMuts, t, S, states, states_matrix) {
 
 #From the full states, removes mutation labels to give lumped state
 lumped_state <- function(state) {
-  S = length(state)
+  S = length(state)                               
   lumped = rep(0, S)
   
-  i = 1
+  state[state == "None"| state == "0"] <- 0       
   
-  if (length(state) == 0) {
+  if (S == 0) {
     print("lumped state error")
     print(state)
   }
-  while (i < S + 1) {
-    if (state[i] == "None") {
-      state[i] = 0
-    }
-    if (state[i] == "0") {state[i] = 0}
-    if (state[i] != 0) {
-      if (i < S) {
-        if (state[i] != state[i+1]) { 
-          lumped[i] = 1
-          i = i + 1
-        }
-        else { #overlapping to mark
-          all = which(state == state[i])
-          lumped[all] <- i + 1
-          i = i + length(all)
-        }
+  
+  i = 1
+  while (i < S + 1) {      
+    if (state[i] != 0) {                          
+      if (i < S && state[i] == state[i+1]) {                                
+        all = which(state == state[i])
+        lumped[all] <- i + 1
+        i = i + length(all)
+      } else{
+        lumped[i] = 1                           
+        i = i + 1
       }
-      else {lumped[i] = 1
-      i = i + 1}
-    }
-    else {
+    } else{
       i = i + 1
     }
   }
@@ -370,26 +362,8 @@ pq_vectors <- function(D, hap, pairs, edge_lengths, eigenQ, states, states_matri
   S = ncol(D)
   
   #turn ape tree into matched pairs for easier traversal
-  #pairs = matching(tree)
   p <- hap$p
   alleles <- hap$alleles
-  #T_prob = eigenQ$vectors%*%diag(exp(eigenQ$values))%*%eigenQ$inv
-  #Initialize the p-vectors with the data
-  # alleles = matrix("0", nrow = 1, ncol = S)
-  # p = matrix(0, ncol = 2*n - 1, nrow = 1)
-  # for (r in 1:n) {
-  #   node = D[r, ]
-  #   allele_index = which(apply(alleles, 1, function(x) all.equal(x[1:S], node)) == "TRUE")
-  #   if (length(allele_index) > 0) { #The allele has already been added to list
-  #     p[allele_index, r] = 1
-  #   }
-  #   else {
-  #     alleles = rbind(alleles, node)
-  #     p = rbind(p, rep(0, ncol(p)))
-  #     p[nrow(p), r] = 1
-  #   }
-  # }
-  # 
   
   #Now go up the tree using the pairs
   if (approx == 0) {
@@ -548,45 +522,287 @@ pq_vectors <- function(D, hap, pairs, edge_lengths, eigenQ, states, states_matri
     }
   }
   
-  #The q vectors are discovered from the root down
-  q = matrix(0, nrow = nrow(alleles), ncol = 2*n - 1)
-  #q
-  q[1, 2*n-1] = 1 #This condition indicates the root equals ancestral, which
-  #should be the first entry in the alleles matrix anyway
   
-  for (k in 1:(2*n-2)) {
-    node = (2*n - 1) - k
-    Pt1 = eigenQ$vectors%*%diag(exp(eigenQ$values*edge_lengths[node]))%*%eigenQ$inv
-    #Hacky way since it could be in first or second column
-    row = c(which(pairs[, 1] == node), which(pairs[, 2] == node))
-    parent = pairs[row, 3]
-    sibling = pairs[row, c(which(pairs[row, 1:2] != node))]
-    Pt2 = eigenQ$vectors%*%diag(exp(eigenQ$values*edge_lengths[sibling]))%*%eigenQ$inv
+  ##========================Upgrade========================##
+  # Initialize q matrix
+  q = matrix(0, nrow = nrow(alleles), ncol = 2 * n - 1)
+  q[1, 2 * n - 1] = 1 # Root as ancestral condition
+  
+  # Precompute eigenvalue-based matrices for each node to avoid redundant calculations
+  Pt_matrices <- lapply(1:(2*n - 2), function(node) {
+    eigenQ$vectors %*% diag(exp(eigenQ$values * edge_lengths[node])) %*% eigenQ$inv
+  })
+  
+  for (k in 1:(2*n - 2)) {
+    node <- (2*n - 1) - k
+    Pt1 <- Pt_matrices[[node]]
     
-    #Super inefficient ...
+    row <- c(which(pairs[, 1] == node), which(pairs[, 2] == node))
+    parent <- pairs[row, 3]
+    sibling <- pairs[row, c(which(pairs[row, 1:2] != node))]
+    Pt2 <- Pt_matrices[[sibling]]
+    
+    # Compute p1_vec for current allele to parent once
+    p1_list <- lapply(1:nrow(alleles), function(b) {
+      sapply(1:nrow(alleles), function(a) {
+        transition_prob_finite_alleles(alleles[b, ], alleles[a, ], Pt1, states, M, mu = mu)
+      })
+    })
+    
+    # Compute p2_vec between sibling alleles once
+    p2_list <- lapply(1:nrow(alleles), function(b) {
+      sapply(1:nrow(alleles), function(c) {
+        transition_prob_finite_alleles(alleles[b, ], alleles[c, ], Pt2, states, M, mu = mu)
+      })
+    })
+    
     for (a in 1:nrow(alleles)) {
-      allele = alleles[a, ]
-      q_total = 0
+      #allele <- alleles[a, ]
+      q_total <- 0
+      
+      # Vectorize calculations over alleles to reduce nested loops
+      qb_vec <- q[, parent]
+      
       for (b in 1:nrow(alleles)) {
-        allele2 = alleles[b, ]
-        qb = q[b, parent]
-        p1 = transition_prob_finite_alleles(allele2, allele, Pt1, states, M, mu = mu)
-        for (c in 1:nrow(alleles)) {
-          allele3 = alleles[c, ]
-          p2 = transition_prob_finite_alleles(allele2, allele3, Pt2, states, M, mu = mu)
-          pc = p[c, sibling]
-          q_total = q_total + qb*p1*p2*pc
-        }
+        p1_val <- p1_list[[b]][a]
+        p2_vals <- p2_list[[b]]
+        pc_vec <- p[, sibling]
+        
+        q_total <- q_total + sum(qb_vec[b] * p1_val * p2_vals * pc_vec)
       }
-      q[a, node] = q_total
+      q[a, node] <- q_total
     }
-    
   }
-  
   
   return(list(alleles, p, q))
   
 }
+
+
+
+
+# pq_vectors <- function(D, hap, pairs, edge_lengths, eigenQ, states, states_matrix, M, approx, T_prob, mu = NULL) {
+#   n = nrow(D)
+#   S = ncol(D)
+#   
+#   #turn ape tree into matched pairs for easier traversal
+#   #pairs = matching(tree)
+#   p <- hap$p
+#   alleles <- hap$alleles
+#   #T_prob = eigenQ$vectors%*%diag(exp(eigenQ$values))%*%eigenQ$inv
+#   #Initialize the p-vectors with the data
+#   # alleles = matrix("0", nrow = 1, ncol = S)
+#   # p = matrix(0, ncol = 2*n - 1, nrow = 1)
+#   # for (r in 1:n) {
+#   #   node = D[r, ]
+#   #   allele_index = which(apply(alleles, 1, function(x) all.equal(x[1:S], node)) == "TRUE")
+#   #   if (length(allele_index) > 0) { #The allele has already been added to list
+#   #     p[allele_index, r] = 1
+#   #   }
+#   #   else {
+#   #     alleles = rbind(alleles, node)
+#   #     p = rbind(p, rep(0, ncol(p)))
+#   #     p[nrow(p), r] = 1
+#   #   }
+#   # }
+#   # 
+#   
+#   #Now go up the tree using the pairs
+#   if (approx == 0) {
+#     for (j in 1:(n-1)) {
+#       
+#       node = n + j
+#       
+#       #The pairs should be stored in decreasing order, but just to be safe...
+#       #row = which(pairs[, 3] == node) 
+#       row = n-j
+#       c1 = pairs[row, 1]
+#       c2 = pairs[row, 2]
+#       Pt1 = eigenQ$vectors%*%diag(exp(eigenQ$values*edge_lengths[c1]))%*%eigenQ$inv
+#       Pt2 = eigenQ$vectors%*%diag(exp(eigenQ$values*edge_lengths[c2]))%*%eigenQ$inv
+#       
+#       
+#       #There must be a better way to do this??
+#       pos_child1 = which(p[, c1] > 0)
+#       pos_child2 = which(p[, c2] > 0)
+#       #if (sum(pos_child1) == 0) { print(c1)}
+#       #if (sum(pos_child2) == 0) { print(c2)}
+#       
+#       
+#       for (i in 1:length(pos_child1)) {
+#         child1 = alleles[pos_child1[i], ]
+#         c1_lumped = lumped_state(child1)
+#         pc1 = p[pos_child1[i], c1]
+#         parents1 = possible_parents_FA(child1, states, states_matrix, T_prob, M) 
+#         for (l in 1:length(pos_child2)) {
+#           child2 = alleles[pos_child2[l], ] 
+#           c2_lumped = lumped_state(child2)
+#           pc2 = p[pos_child2[l], c2]
+#           parents2 = possible_parents_FA(child2, states, states_matrix, T_prob, M)
+#           
+#           possible = Reduce(intersect, list(parents1, parents2))
+#           if (length(possible) == 0) {
+#             print(error )
+#           }
+#           for (k in 1:length(possible)) {
+#             allele = possible[[k]]
+#             allele_lumped = lumped_state(allele)
+#             
+#             p1 = transition_prob_finite_alleles(allele, child1, Pt1, states, M, allele_lumped, c1_lumped, mu = mu)
+#             p2 = transition_prob_finite_alleles(allele, child2, Pt2, states, M, allele_lumped, c2_lumped, mu = mu)
+#             
+#             if (p1*p2 == 0) {
+#               print ("PROBLEM")
+#               #print(edge_lengths[c1])
+#               #print(edge_lengths[c2])
+#             }
+#             
+#             allele_index = which(apply(alleles, 1, function(x) all.equal(x[1:S], allele)) == "TRUE")
+#             if (length(allele_index) > 0) { #The allele has already been added to list
+#               p[allele_index, node] = p[allele_index, node] + p1*p2*pc1*pc2
+#             }
+#             else {
+#               alleles = rbind(alleles, allele)
+#               p = rbind(p, rep(0, ncol(p)))
+#               p[nrow(p), node] = p1*p2*pc1*pc2
+#             }
+#             
+#           }
+#           
+#         }
+#       }
+#       if (sum(p[, node]) == 0) {
+#         print("problem")
+#         print(node)
+#       }
+#     }
+#   }
+#   else{
+#     
+#     for (j in 1:(n-1)) {
+#       
+#       node = n + j
+#       
+#       #The pairs should be stored in decreasing order, but just to be safe...
+#       row = which(pairs[, 3] == node) 
+#       c1 = pairs[row, 1]
+#       c2 = pairs[row, 2]
+#       Pt1 = eigenQ$vectors%*%diag(exp(eigenQ$values*edge_lengths[c1]))%*%eigenQ$inv
+#       Pt2 = eigenQ$vectors%*%diag(exp(eigenQ$values*edge_lengths[c2]))%*%eigenQ$inv
+#       
+#       #There must be a better way to do this?? #alleles
+#       pos_child1 = which(p[, c1] > 0)
+#       pos_child2 = which(p[, c2] > 0)
+#       ###I commented these two lines out (julia)
+#       #if (sum(pos_child1) == 0) { print(c1)}
+#       #if (sum(pos_child2) == 0) { print(c2)}
+#       
+#       
+#       for (i in 1:length(pos_child1)) {
+#         child1 = alleles[pos_child1[i], ]
+#         c1_lumped = lumped_state(child1)
+#         c1_index = states[[stringi::stri_join(c1_lumped, collapse = "")]]
+#         
+#         ##commented out, not used (julia), it is a scalar, don't see the point
+#         pc1 = p[pos_child1[i], c1]
+#         if(any(is.na(child1))) {
+#           print("Na in pq")
+#           print(child1)
+#           print(alleles)
+#           print(pos_child1)
+#           print(p)
+#           print(c1)
+#           print(c2)
+#           print(pairs)
+#         }
+#         
+#         parents1 = possible_parents_approximate(child1, states, states_matrix, T_prob, D) 
+#         for (l in 1:length(pos_child2)) {
+#           child2 = alleles[pos_child2[l], ] 
+#           c2_lumped = lumped_state(child2)
+#           c2_index =  states[[stringi::stri_join(c2_lumped, collapse = "")]]
+#           
+#           pc2 = p[pos_child2[l], c2]
+#           
+#           parents2 = possible_parents_approximate(child2, states, states_matrix, T_prob, D) 
+#           possible = Reduce(intersect, list(parents1, parents2))
+#           if (length(possible) == 0) {
+#             print(error )
+#           }
+#           for (k in 1:length(possible)) {
+#             allele = possible[[k]]
+#             allele_lumped = lumped_state(allele)
+#             parent_index = states[[stringi::stri_join(allele_lumped, collapse = "")]]
+#             
+#             p1 = transition_prob_finite_alleles(allele, child1, Pt1, states, M, allele_lumped, c1_lumped, parent_index, c1_index, mu = mu)
+#             p2 = transition_prob_finite_alleles(allele, child2, Pt2, states, M, allele_lumped, c2_lumped, parent_index, c2_index, mu = mu)
+#             
+#             if (p1*p2 == 0) {
+#               print ("PROBLEM")
+#               print(edge_lengths[c1])
+#               print(edge_lengths[c2])
+#             }
+#             
+#             allele_index = which(apply(alleles, 1, function(x) all.equal(x[1:S], allele)) == "TRUE")
+#             if (length(allele_index) > 0) { #The allele has already been added to list
+#               p[allele_index, node] = p[allele_index, node] + p1*p2*pc1*pc2
+#             }
+#             else {
+#               alleles = rbind(alleles, allele)
+#               p = rbind(p, rep(0, ncol(p)))
+#               p[nrow(p), node] = p1*p2*pc1*pc2
+#             }
+#             
+#           }
+#           
+#         }
+#       }
+#       if (sum(p[, node]) == 0) {
+#         print("problem")
+#         print(node)
+#       }
+#     }
+#   }
+#   
+#   #The q vectors are discovered from the root down
+#   q = matrix(0, nrow = nrow(alleles), ncol = 2*n - 1)
+#   #q
+#   q[1, 2*n-1] = 1 #This condition indicates the root equals ancestral, which
+#   #should be the first entry in the alleles matrix anyway
+#   
+#   for (k in 1:(2*n-2)) {
+#     node = (2*n - 1) - k
+#     Pt1 = eigenQ$vectors%*%diag(exp(eigenQ$values*edge_lengths[node]))%*%eigenQ$inv
+#     #Hacky way since it could be in first or second column
+#     row = c(which(pairs[, 1] == node), which(pairs[, 2] == node))
+#     parent = pairs[row, 3]
+#     sibling = pairs[row, c(which(pairs[row, 1:2] != node))]
+#     Pt2 = eigenQ$vectors%*%diag(exp(eigenQ$values*edge_lengths[sibling]))%*%eigenQ$inv
+#     
+#     #Super inefficient ...
+#     for (a in 1:nrow(alleles)) {
+#       allele = alleles[a, ]
+#       q_total = 0
+#       for (b in 1:nrow(alleles)) {
+#         allele2 = alleles[b, ]
+#         qb = q[b, parent]
+#         p1 = transition_prob_finite_alleles(allele2, allele, Pt1, states, M, mu = mu)
+#         for (c in 1:nrow(alleles)) {
+#           allele3 = alleles[c, ]
+#           p2 = transition_prob_finite_alleles(allele2, allele3, Pt2, states, M, mu = mu)
+#           pc = p[c, sibling]
+#           q_total = q_total + qb*p1*p2*pc
+#         }
+#       }
+#       q[a, node] = q_total
+#     }
+#     
+#   }
+#   
+#   
+#   return(list(alleles, p, q))
+#   
+# }
 
 ##Generates summary table of the data, input for pq_vectors
 haplotypes<-function(D,n,S){
@@ -799,82 +1015,152 @@ optim_for_par<-function(index,cell_list,parent_list,t,r0,states,states_matrix, e
 #For a given mutation state, returns all possible
 #allele states, using only alleles which occur in the leaves
 #Or a `wildcard allele`
-all_allele_states_leaves <- function(m_state, leaves) {
+
+all_allele_states_leaves<-function(m_state, leaves) {
   S = length(m_state)
   
   alleles = c()
   s = 1
-  while (s < S + 1) {
-    
-    if (m_state[s] == 0) {
-      site_possible = c(0)
+  while (s < S + 1) {                                             
+    if (m_state[s] == 0) {                                                     
+      site_possible = c(0)                                                     
       news = s + 1
-      end_site = s
+      end_site = s                                                             
     }
-    else if (m_state[s] == 1) {
+    
+    ##========================Upgrade========================##
+    else if (m_state[s] == 1) {                                                 
       leaves_site = leaves[, s]
       possible = c()
-      for (j in 1:length(leaves_site)) { #surely a better way to do this
-        if (leaves_site[j] != "0") {
-          temp = strsplit(leaves_site[j], ":")[[1]]
-          A = temp[1]
-          if (as.numeric(A) <= S) {#make sure it's not an overlap
-            possible = c(possible, leaves_site[j])
-          }
-        }
-      }
-      site_possible = c(unique(possible), paste(s, "WC", sep = ""))
-      news = s + 1
-      end_site = s
-    }
-    else if (m_state[s] > 1) {
-      end_site = max(which(m_state == m_state[s]))
-      site_possible = site_alleles(s*10 + end_site, M[s, end_site])
+      non_zero_leaves <- leaves_site[leaves_site != "0"]
+      allele_numbers <- sapply(strsplit(non_zero_leaves, ":"), `[`, 1)
+      valid_indices <- which(as.numeric(allele_numbers) <= S)                 
+      possible <- non_zero_leaves[valid_indices]
       
-      possible = c()
-      for (j in 1:nrow(leaves)) { #surely a better way to do this
-        row = leaves[j, ]
-        if (row[s] == row[end_site] & row[s] != "0") {
-          possible = c(possible, row[s])
-        }
-      }
-      m = 10*s + end_site
-      site_possible = c(unique(possible), paste( m, "WC", sep = ""))
-      news = end_site + 1
+      site_possible = c(unique(possible), paste(s, "WC", sep = ""))             
+      news = s + 1
+      end_site = s                                                             
     }
     
-    P = length(site_possible)
-    if (s == 1) { #first site
-      new_matrix = matrix(0, nrow = P, ncol = (news -1))
-      for (j in 1:P) {
-        add_on = rep(site_possible[j], end_site - s + 1)
-        new_matrix[j, ] = add_on
-      }
+    ##========================Upgrade========================##
+    else if (m_state[s] > 1) {                                                 
+      end_site = max(which(m_state == m_state[s]))    
+      
+      # Use Boolean indexing to replace the loop for extracting possible allele states that meet the criteria
+      # We select rows in leaves where the values in columns s and end_site are equal and not equal to "0"
+      valid_rows <- leaves[, s] == leaves[, end_site] & leaves[, s] != "0"
+      possible <- unique(leaves[valid_rows, s])  
+      
+      m = 10*s + end_site
+      site_possible = c(unique(possible), paste(m, "WC", sep = ""))             
+      news = end_site + 1                                                       
     }
-    else {
-      new_matrix = matrix(0, nrow = nrow(alleles)*P, ncol = news - 1)
-      for (r in 1:nrow(alleles)) {
-        row = alleles[r, ]
-        for (j in 1:P) {
-          add_on = rep(site_possible[j], end_site - s + 1)
-          new_state = c(row, add_on)
-          new_matrix[P*(r - 1) + j, ] = new_state
-        }
-      }
+    
+    ##========================Upgrade========================##
+    P = length(site_possible)                                                   
+    
+    if (s == 1) {                                                               
+      add_on_matrix <- matrix(rep(site_possible, each = end_site - s + 1), nrow = P, ncol = end_site - s + 1, byrow = TRUE)
+      new_matrix <- add_on_matrix
+    } else {
+      existing_rows <- nrow(alleles)
+      
+      # Expand alleles by a factor of P in terms of row count
+      row_expanded <- alleles[rep(1:existing_rows, each = P), , drop = FALSE]
+      
+      # Create add_on_matrix to contain all possible state combinations
+      add_on_matrix <- matrix(rep(site_possible, each = end_site - s + 1), nrow = P * existing_rows, ncol = end_site - s + 1, byrow = TRUE)
+      
+      # Use cbind() to concatenate row_expanded and add_on_matrix horizontally
+      new_matrix <- cbind(row_expanded, add_on_matrix)
     }
     alleles = new_matrix
     s = news
-    #print(alleles)
   }
-  
-  return(alleles)
+  return(alleles)                                                               
 }
+
+#For a given mutation state, returns all possible
+#allele states, using only alleles which occur in the leaves
+#Or a `wildcard allele`
+# all_allele_states_leaves <- function(m_state, leaves) {
+#   S = length(m_state)
+#   
+#   alleles = c()
+#   s = 1
+#   while (s < S + 1) {
+#     
+#     if (m_state[s] == 0) {
+#       site_possible = c(0)
+#       news = s + 1
+#       end_site = s
+#     }
+#     else if (m_state[s] == 1) {
+#       leaves_site = leaves[, s]
+#       possible = c()
+#       for (j in 1:length(leaves_site)) { #surely a better way to do this
+#         if (leaves_site[j] != "0") {
+#           temp = strsplit(leaves_site[j], ":")[[1]]
+#           A = temp[1]
+#           if (as.numeric(A) <= S) {#make sure it's not an overlap
+#             possible = c(possible, leaves_site[j])
+#           }
+#         }
+#       }
+#       site_possible = c(unique(possible), paste(s, "WC", sep = ""))
+#       news = s + 1
+#       end_site = s
+#     }
+#     else if (m_state[s] > 1) {
+#       end_site = max(which(m_state == m_state[s]))
+#       site_possible = site_alleles(s*10 + end_site, M[s, end_site])
+#       
+#       possible = c()
+#       for (j in 1:nrow(leaves)) { #surely a better way to do this
+#         row = leaves[j, ]
+#         if (row[s] == row[end_site] & row[s] != "0") {
+#           possible = c(possible, row[s])
+#         }
+#       }
+#       m = 10*s + end_site
+#       site_possible = c(unique(possible), paste( m, "WC", sep = ""))
+#       news = end_site + 1
+#     }
+#     
+#     P = length(site_possible)
+#     if (s == 1) { #first site
+#       new_matrix = matrix(0, nrow = P, ncol = (news -1))
+#       for (j in 1:P) {
+#         add_on = rep(site_possible[j], end_site - s + 1)
+#         new_matrix[j, ] = add_on
+#       }
+#     }
+#     else {
+#       new_matrix = matrix(0, nrow = nrow(alleles)*P, ncol = news - 1)
+#       for (r in 1:nrow(alleles)) {
+#         row = alleles[r, ]
+#         for (j in 1:P) {
+#           add_on = rep(site_possible[j], end_site - s + 1)
+#           new_state = c(row, add_on)
+#           new_matrix[P*(r - 1) + j, ] = new_state
+#         }
+#       }
+#     }
+#     alleles = new_matrix
+#     s = news
+#     #print(alleles)
+#   }
+#   
+#   return(alleles)
+# }
 
 possible_parents_approximate <- function(child, states, states_matrix, T_prob, leaves) {
   #print("Leaves in ppa")
   #print(leaves)
+  
   lumped_parents = possible_parents_lumped(lumped_state(child), states, states_matrix, T_prob) #This a matrix, rows are states
   lumped_child = lumped_state(child)
+  
   S = length(child)
   
   parents = list()
@@ -920,27 +1206,30 @@ possible_parents_approximate <- function(child, states, states_matrix, T_prob, l
               
               temp_parent = rep(0, S)
               temp_parent[s:endstate] = state[s:endstate]
+              
               possible_masked = all_allele_states_leaves(temp_parent, leaves) #THIS NEEDS TO CHANGE!
               
-              if (!is.null(nrow(parent))) { #already more possibilities from a previous overlap
-                results = c()
-                for (r in 1:nrow(parent)) {
-                  for (k in 1:nrow(possible_masked)) {
-                    new_parent = parent[r, ]
-                    new_parent[s:endstate] = possible_masked[k, s:endstate]
-                    results = c(results, new_parent)
+              ##========================Upgrade========================##
+              if (!is.null(nrow(parent))) {
+                new_parents <- vector("list", nrow(parent) * nrow(possible_masked))
+                counter <- 1
+                for (r in seq_len(nrow(parent))) {
+                  for (k in seq_len(nrow(possible_masked))) {
+                    new_parent <- parent[r, ]
+                    new_parent[s:endstate] <- possible_masked[k, s:endstate]
+                    new_parents[[counter]] <- new_parent
+                    counter <- counter + 1
                   }
                 }
-                parent = matrix(results, nrow = nrow(possible_masked)*nrow(parent), ncol = S, byrow = TRUE)
-              }
-              else {
-                results = c()
-                for (r in 1:nrow(possible_masked)) {
-                  new_parent = parent
-                  new_parent[s:endstate] = possible_masked[r, s:endstate]
-                  results = c(results, new_parent)
+                parent <- do.call(rbind, new_parents)
+              } else {
+                new_parents <- vector("list", nrow(possible_masked))
+                for (k in seq_len(nrow(possible_masked))) {
+                  new_parent <- parent
+                  new_parent[s:endstate] <- possible_masked[k, s:endstate]
+                  new_parents[[k]] <- new_parent
                 }
-                parent = matrix(results, nrow = nrow(possible_masked), ncol = S, byrow = TRUE)
+                parent <- do.call(rbind, new_parents)
               }
             }
             
@@ -964,6 +1253,100 @@ possible_parents_approximate <- function(child, states, states_matrix, T_prob, l
   }
   return(parents)
 }
+# possible_parents_approximate <- function(child, states, states_matrix, T_prob, leaves) {
+#   #print("Leaves in ppa")
+#   #print(leaves)
+#   lumped_parents = possible_parents_lumped(lumped_state(child), states, states_matrix, T_prob) #This a matrix, rows are states
+#   lumped_child = lumped_state(child)
+#   S = length(child)
+#   
+#   parents = list()
+#   
+#   #If the child is ancestral type, only the ancestral type is possible
+#   if (sum(lumped_child) == 0) {
+#     return(list(as.character(lumped_parents))) #Note: important because alleles are characters, mutations are integers
+#   }
+#   else if (nrow(lumped_parents) > 0) {
+#     for (r in 1:(nrow(lumped_parents))) {
+#       state = lumped_parents[r, ]
+#       
+#       #This could be a matrix, if there is more than one 
+#       #possible parent due to masking mutations
+#       parent = state
+#       s = 1
+#       while (s < S + 1) {
+#         if (lumped_child[s] == state[s]) {
+#           if (!is.null(nrow(parent))) { #already more possibilities from a previous overlap
+#             parent[, s] = rep(child[s], nrow(parent))
+#           }
+#           else {
+#             parent[s] = child[s]
+#           }
+#           news = s + 1
+#         }
+#         else {
+#           if (lumped_child[s] == 1) {
+#             if (state[s] > 0) { print("Error in parent state")}
+#             news = s + 1
+#           }
+#           else { #child has a new overlap mutation 
+#             #This case is if the parent has a mutation which vanished in the child due to an overlapping mutation
+#             #We will generate all possible configurations, but only
+#             #from alleles which occurred in the leaves, and so show up elsewhere in the tree
+#             #We also add on one `wildcard' indicating something not seen in the tree
+#             #!!!!NOTE!!! There could be more than one WC introduced at the same site
+#             #Currently the code treats all WC as the same allele, ignoring the possibility (which seems more likely)
+#             #That the WC are different alleles ... I could modify this later to treat all WC as unique
+#             endstate = max(which(lumped_child == lumped_child[s]))
+#             news = endstate + 1
+#             if (sum(state[s:endstate]) > 0) { #indicating an overlap
+#               
+#               temp_parent = rep(0, S)
+#               temp_parent[s:endstate] = state[s:endstate]
+#               possible_masked = all_allele_states_leaves(temp_parent, leaves) #THIS NEEDS TO CHANGE!
+#               
+#               if (!is.null(nrow(parent))) { #already more possibilities from a previous overlap
+#                 results = c()
+#                 for (r in 1:nrow(parent)) {
+#                   for (k in 1:nrow(possible_masked)) {
+#                     new_parent = parent[r, ]
+#                     new_parent[s:endstate] = possible_masked[k, s:endstate]
+#                     results = c(results, new_parent)
+#                   }
+#                 }
+#                 parent = matrix(results, nrow = nrow(possible_masked)*nrow(parent), ncol = S, byrow = TRUE)
+#               }
+#               else {
+#                 results = c()
+#                 for (r in 1:nrow(possible_masked)) {
+#                   new_parent = parent
+#                   new_parent[s:endstate] = possible_masked[r, s:endstate]
+#                   results = c(results, new_parent)
+#                 }
+#                 parent = matrix(results, nrow = nrow(possible_masked), ncol = S, byrow = TRUE)
+#               }
+#             }
+#             
+#           }
+#         }
+#         s = news
+#       }
+#       
+#       if (!is.null(nrow(parent))) { #more than one option
+#         #print("masked alleles")
+#         for (r in 1:nrow(parent)) {
+#           parents[[length(parents) + 1]] <- as.character(parent[r, ])
+#         }
+#       }
+#       else{
+#         parents[[length(parents) + 1]] <- as.character(parent)
+#       }
+#       
+#     }
+#     
+#   }
+#   return(parents)
+# }
 
 
 
