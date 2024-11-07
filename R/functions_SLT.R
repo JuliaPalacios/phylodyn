@@ -175,7 +175,8 @@ probs_function <- function(theta, observedMuts, t, S, states, states_matrix) {
   for (j in 1:S){
     pos<-rbind(pos,cbind(1:(S-j+1),j:S))
   }
-  theta_matrix[pos]<-theta
+  
+  theta_matrix[pos[-1,]]<-theta
   #theta_matrix[lower.tri(theta_matrix, diag=FALSE)] <-  theta[(S+1):length(theta)]
   #tail(theta, as.integer((S-1)*(S)/2)) #theta[-(1:(S))] #get the last entries, starting from S+1
   #print(theta_matrix[lower.tri(theta_matrix, diag=FALSE)])
