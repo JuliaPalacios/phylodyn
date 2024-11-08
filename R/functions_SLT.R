@@ -27,8 +27,10 @@ estimate_mu<-function(data,t){
   for (j in 1:S) {
     pos <- rbind(pos, cbind(1:(S - j + 1), j:S))
   }
-  theta0<--log(B[pos])/t
+  theta0<--log(1-B[pos])/t
   theta0[is.infinite(theta0)]<-.0000001
+  theta0[is.na(theta0)]<-.0000001
+  
   #probs_function computes the sum of (observed - expected)^2 for each mutation type
   est_theta1 = optim(theta0, fn = probs_function,  observedMuts = B, t = t, S = S, 
                      states = states, states_matrix = states_matrix, lower = rep(0, length(theta0)), method = "L-BFGS-B")
