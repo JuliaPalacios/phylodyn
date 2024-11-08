@@ -23,15 +23,21 @@ estimate_mu<-function(data,t){
   ##Initial value of theta for optimization
   theta0<-rep(1,(S*(S+1)/2))*.01
   states_matrix<-state_space_matrix(S)
+  pos <- c(0, 0)
+  for (j in 1:S) {
+    pos <- rbind(pos, cbind(1:(S - j + 1), j:S))
+  }
+  theta0<--log(B[pos])/t
+  theta0[is.infinite(theta0)]<-.0000001
   #probs_function computes the sum of (observed - expected)^2 for each mutation type
   est_theta1 = optim(theta0, fn = probs_function,  observedMuts = B, t = t, S = S, 
                      states = states, states_matrix = states_matrix, lower = rep(0, length(theta0)), method = "L-BFGS-B")
   
   theta<-matrix(0,nrow=S,ncol=S)
-  diag(theta)<-est_theta1$par[1:S]
-  theta[lower.tri(theta,diag=FALSE)]<-est_theta1$par[-c(1:S)]
-  theta=t(theta)
-  
+  #diag(theta)<-est_theta1$par[1:S]
+  #theta[lower.tri(theta,diag=FALSE)]<-est_theta1$par[-c(1:S)]
+  #theta=t(theta)
+  theta[pos]<-est_theta1$par
   return(theta)
   
 }
