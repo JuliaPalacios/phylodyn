@@ -324,7 +324,7 @@ create.weight.mat.hetero <- function(u.t) {
 #' @references Kim J, Rosenberg NA, Palacios JA, 2019.
 #' \emph{A Metric Space of Ranked Tree Shapes and Ranked Genealogies}.
 #'
-dist_pairwise <- function(tr.1, tr.2, dist.method='l1', weighted=FALSE) {
+dist_pairwise <- function(tr.1, tr.2, dist.method='l1', weighted=FALSE, tol=13) {
 
     ## ======= check input format ======
     if (!(dist.method == 'l1' | dist.method == 'l2')) {
@@ -336,8 +336,8 @@ dist_pairwise <- function(tr.1, tr.2, dist.method='l1', weighted=FALSE) {
     }
 
     ## ======= convert tr.1 and tr.2 to tree data =======
-    tr.dat.1 <- gen.tr.data(tr.1)
-    tr.dat.2 <- gen.tr.data(tr.2)
+    tr.dat.1 <- gen.tr.data(tr.1,tol=tol)
+    tr.dat.2 <- gen.tr.data(tr.2,tol=tol)
 
     ## ======= Process tree.1 and tree.2 to merge =======
     tmp.info.1 <- tr.dat.1$u.info
