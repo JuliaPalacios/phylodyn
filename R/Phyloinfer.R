@@ -405,10 +405,19 @@ splitHMC = function (q_cur, u_cur, du_cur, U, rtEV, EVC, eps=.1, L=5, rand_leap=
   {
     p[D] <- p[D] - eps/2*A/2*exp(q[D])
     q[D] <- q[D] + eps/2*p[D]
-    
+
+
+    #Change by Ivan (Feb 20, 2025)
     # Make a full step for the middle dynamics
     Cpx = complex(modulus = 1, argument = -rtEV*exp(q[D]/2)*eps)*complex(real = qT*exp(q[D]/2), imaginary = pT)
-    qT = Re(Cpx)*exp(-q[D]/2)
+    #qT = Re(Cpx)*exp(-q[D]/2)
+    ind_neg <- which(Re(Cpx) < 0)
+    ind_0 <- which(Re(Cpx) == 0)
+    ind_pos <- which(Re(Cpx) > 0)
+    qT <- rep(0, length(Cpx))
+    qT[ind_neg] <- -exp(log(-Re(Cpx)[ind_neg]) + (-q[D]/2))
+    qT[ind_pos] <- exp(log(Re(Cpx)[ind_pos]) + (-q[D]/2))
+    
     pT = Im(Cpx)
     q[-D] = EVC%*%(qT/rtEV)
     
