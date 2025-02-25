@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><beast beautitemplate='Standard' beautistatus='' namespace="beast.core:beast.evolution.alignment:beast.evolution.tree.coalescent:beast.core.util:beast.evolution.nuc:beast.evolution.operators:beast.evolution.sitemodel:beast.evolution.substitutionmodel:beast.base.evolution.alignment:beast.pkgmgmt:beast.base.core:beast.base.inference:beast.base.evolution.tree.coalescent:beast.pkgmgmt:beast.base.core:beast.base.inference.util:beast.evolution.nuc:beast.base.evolution.operator:beast.base.inference.operator:beast.base.evolution.sitemodel:beast.base.evolution.substitutionmodel:beast.base.evolution.likelihood" required="BEAST.base v2.7.5" version="2.7">
+
+    <data
+id="proj1"
+spec="Alignment"
+name="alignment">
+    </data>
+
+    <map name="Uniform" >beast.base.inference.distribution.Uniform</map>
+
+    <map name="Exponential" >beast.base.inference.distribution.Exponential</map>
+
+    <map name="LogNormal" >beast.base.inference.distribution.LogNormalDistributionModel</map>
+
+    <map name="Normal" >beast.base.inference.distribution.Normal</map>
+
+    <map name="Beta" >beast.base.inference.distribution.Beta</map>
+
+    <map name="Gamma" >beast.base.inference.distribution.Gamma</map>
+
+    <map name="LaplaceDistribution" >beast.base.inference.distribution.LaplaceDistribution</map>
+
+    <map name="prior" >beast.base.inference.distribution.Prior</map>
+
+    <map name="InverseGamma" >beast.base.inference.distribution.InverseGamma</map>
+
+    <map name="OneOnX" >beast.base.inference.distribution.OneOnX</map>
+
+    <run id="mcmc" spec="MCMC" chainLength="1100000">
+        <state id="state" spec="State" storeEvery="5000">
+            <tree id="Tree.t:proj1" spec="beast.base.evolution.tree.Tree" name="stateNode">
+                <taxonset id="TaxonSet.proj1" spec="TaxonSet">
+                    <alignment idref="proj1"/>
+                </taxonset>
+            </tree>
+            <parameter id="popSize.t:proj1" spec="parameter.RealParameter" lower="0.0" name="stateNode">0.3</parameter>
+        </state>
+        <init id="RandomTree.t:proj1" spec="RandomTree" estimate="false" initial="@Tree.t:proj1" taxa="@proj1">
+            <populationModel id="ConstantPopulation0.t:proj1" spec="ConstantPopulation">
+                <parameter id="randomPopSize.t:proj1" spec="parameter.RealParameter" name="popSize">1.0</parameter>
+            </populationModel>
+        </init>
+        <distribution id="posterior" spec="CompoundDistribution">
+            <distribution id="prior" spec="CompoundDistribution">
+                <distribution id="CoalescentConstant.t:proj1" spec="Coalescent">
+                    <populationModel id="ConstantPopulation.t:proj1" spec="ConstantPopulation" popSize="@popSize.t:proj1"/>
+                    <treeIntervals id="TreeIntervals.t:proj1" spec="beast.base.evolution.tree.TreeIntervals" tree="@Tree.t:proj1"/>
+                </distribution>
+                <prior id="PopSizePrior.t:proj1" name="distribution" x="@popSize.t:proj1">
+                    <OneOnX id="OneOnX.1" name="distr"/>
+                </prior>
+            </distribution>
+            <distribution id="likelihood" spec="CompoundDistribution" useThreads="true">
+                <distribution id="treeLikelihood.proj1" spec="ThreadedTreeLikelihood" data="@proj1" tree="@Tree.t:proj1">
+                    <siteModel id="SiteModel.s:proj1" spec="SiteModel">
+                        <parameter id="mutationRate.s:proj1" spec="parameter.RealParameter" estimate="false" lower="0.0" name="mutationRate">1.0</parameter>
+                        <parameter id="gammaShape.s:proj1" spec="parameter.RealParameter" estimate="false" lower="0.1" name="shape">1.0</parameter>
+                        <parameter id="proportionInvariant.s:proj1" spec="parameter.RealParameter" estimate="false" lower="0.0" name="proportionInvariant" upper="1.0">0.0</parameter>
+                        <substModel id="JC69.s:proj1" spec="JukesCantor"/>
+                    </siteModel>
+                    <branchRateModel id="StrictClock.c:proj1" spec="beast.base.evolution.branchratemodel.StrictClockModel">
+                        <parameter id="clockRate.c:proj1" spec="parameter.RealParameter" estimate="false" lower="0.0" name="clock.rate">%s</parameter>
+                    </branchRateModel>
+                </distribution>
+            </distribution>
+        </distribution>
+        <operator id="CoalescentConstantBICEPSEpochTop.t:proj1" spec="EpochFlexOperator" scaleFactor="0.1" tree="@Tree.t:proj1" weight="2.0"/>
+        <operator id="CoalescentConstantBICEPSEpochAll.t:proj1" spec="EpochFlexOperator" fromOldestTipOnly="false" scaleFactor="0.1" tree="@Tree.t:proj1" weight="2.0"/>
+        <operator id="CoalescentConstantBICEPSTreeFlex.t:proj1" spec="TreeStretchOperator" scaleFactor="0.01" tree="@Tree.t:proj1" weight="2.0"/>
+        <operator id="CoalescentConstantTreeRootScaler.t:proj1" spec="kernel.BactrianScaleOperator" rootOnly="true" scaleFactor="0.1" tree="@Tree.t:proj1" upper="10.0" weight="3.0"/>
+        <operator id="CoalescentConstantUniformOperator.t:proj1" spec="kernel.BactrianNodeOperator" tree="@Tree.t:proj1" weight="30.0"/>
+        <operator id="CoalescentConstantSubtreeSlide.t:proj1" spec="kernel.BactrianSubtreeSlide" tree="@Tree.t:proj1" weight="15.0"/>
+        <operator id="CoalescentConstantNarrow.t:proj1" spec="Exchange" tree="@Tree.t:proj1" weight="15.0"/>
+        <operator id="CoalescentConstantWide.t:proj1" spec="Exchange" isNarrow="false" tree="@Tree.t:proj1" weight="3.0"/>
+        <operator id="CoalescentConstantWilsonBalding.t:proj1" spec="WilsonBalding" tree="@Tree.t:proj1" weight="3.0"/>
+        <operator id="PopSizeScaler.t:proj1" spec="kernel.BactrianScaleOperator" parameter="@popSize.t:proj1" upper="10.0" weight="3.0"/>
+        <logger id="tracelog" spec="Logger" fileName="$(filebase).log" logEvery="1000" model="@posterior" sanitiseHeaders="true" sort="smart">
+            <log idref="posterior"/>
+            <log idref="likelihood"/>
+            <log idref="prior"/>
+            <log idref="treeLikelihood.proj1"/>
+            <log id="TreeHeight.t:proj1" spec="beast.base.evolution.tree.TreeStatLogger" tree="@Tree.t:proj1"/>
+            <log idref="popSize.t:proj1"/>
+            <log idref="CoalescentConstant.t:proj1"/>
+        </logger>
+        <logger id="screenlog" spec="Logger" logEvery="1000">
+            <log idref="posterior"/>
+            <log idref="likelihood"/>
+            <log idref="prior"/>
+        </logger>
+        <logger id="treelog.t:proj1" spec="Logger" fileName="$(filebase)-$(tree).trees" logEvery="1000" mode="tree">
+            <log id="TreeWithMetaDataLogger.t:proj1" spec="beast.base.evolution.TreeWithMetaDataLogger" tree="@Tree.t:proj1"/>
+        </logger>
+        <operatorschedule id="OperatorSchedule" spec="OperatorSchedule"/>
+    </run>
+
+</beast>
