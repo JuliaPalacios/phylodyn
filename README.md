@@ -58,6 +58,8 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
     
 18. [Label distance](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/label_distance.Rmd): Distance between ranked labeled trees.
 
+19. Bounded coalescent. 
+
 ## Datasets
 
 Datasets below can be found at: https://github.com/mdkarcher/PhyloData/
