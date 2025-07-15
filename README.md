@@ -120,7 +120,7 @@ Molecular Ecology Resources, 17, 96-100, 2017.
 
 13. L. Cappello, J.A. Palacios. [Adaptive Preferential Sampling in Phylodynamics](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1010897), *PLOS Comp. Biology*, 2023.
 
-14. J. Zhang, J.A. Palacios. [Multiple merger coalescent inference of effective population size]([https://arxiv.org/abs/2407.14976](https://royalsocietypublishing.org/doi/epdf/10.1098/rstb.2023.0306), Philosophical Transactions of the Royal Society B. 
+14. J. Zhang, J.A. Palacios. [Multiple merger coalescent inference of effective population size](https://royalsocietypublishing.org/doi/epdf/10.1098/rstb.2023.0306), Philosophical Transactions of the Royal Society B. 
 
     
 ## Contributors
