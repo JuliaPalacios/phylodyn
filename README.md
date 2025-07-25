@@ -56,7 +56,7 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
     
 17. [Multifurcating](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Multi_Resolution_EPS.Rmd): Simulation of mutifurcating phylogenies from the Lambda coalescent and estimation of Lambda coalescent parameters from this model.
     
-18. [Label distance](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/label_distance.Rmd): Distance between ranked labeled trees.
+18. [Labeled distance](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/label_distance.Rmd): Distance between ranked labeled trees.
 
 19. Bounded coalescent. 
 
