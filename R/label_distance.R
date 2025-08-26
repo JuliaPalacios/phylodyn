@@ -66,6 +66,99 @@ gen_Amat <- function(t) {
   return(A)
 }
 
+
+#' Generation of W-matrix
+#' 
+#' @description This function generates the W-matrix that encodes the branch length information of an input tree.
+#' @param t A \code{phylo} object.
+#' @return W-matrix of the input tree.
+#' @examples 
+#' t <- ape::rcoal(5)
+#' Wmat <- gen_Wmat(t)
+#' @export
+gen_Wmat <- function(t) { 
+  n_tip = t$Nnode + 1
+  intervals <- coalescent.intervals(t)$interval.length
+  Wmat <- matrix(0, n_tip-1, n_tip-1) 
+  for (j in 1:(n_tip-1)) {
+    for (i in j:(n_tip-1)) {
+      Wmat[i,j] <- sum(intervals[(n_tip-i) : (n_tip-j)])
+    }
+  }
+  return (Wmat)
+} 
+
+
+#' Distance between two F-matrices
+#' 
+#' @description This function calculates the distance between two input F-matrices.
+#' @param F1 The first F-matrix.
+#' @param F2 The second F-matrix.
+#' @param norm The norm for calculating distance, either "L1" or "L2".
+#' @return The distance between two F-matrices.
+#' @examples 
+#' t1 <- ape::rcoal(5)
+#' t2 <- ape::rcoal(5)
+#' F1 <- gen_Fmat(t1)
+#' F2 <- gen_Fmat(t2)
+#' d <- dist_Fmat(F1, F2, "L2")
+#' @export
+dist_Fmat <- function(F1, F2, norm = "L1") {
+  if (norm == "L1") {
+    return (sum(abs(F1 - F2)))
+  } else if (norm == "L2") {
+    return (norm(F1-F2, type = "F"))
+  }
+}
+
+
+#' Distance between two F-matrices weighted by branch lengths
+#' 
+#' @description This function calculates the distance between two input F-matrices weighted by branch lengths.
+#' @param F1 The first F-matrix.
+#' @param F2 The second F-matrix.
+#' @param norm The norm for calculating distance, either "L1" or "L2".
+#' @return The distance between two F-matrices weighted by branch lengths.
+#' @examples 
+#' t1 <- ape::rcoal(5)
+#' t2 <- ape::rcoal(5)
+#' F1 <- gen_Fmat(t1)
+#' F2 <- gen_Fmat(t2)
+#' W1 <- gen_Wmat(t1)
+#' W2 <- gen_Wmat(t2)
+#' d <- dist_Fmat_weighted(F1, F2, W1, W2, "L1")
+#' @export
+dist_Fmat_weighted <- function(F1, F2, W1, W2, norm = "L1") {
+  if (norm == "L1") {
+    return (sum(abs(F1*W1 - F2*W2)))
+  } else if (norm == "L2") {
+    return (norm(F1*W1-F2*W2, type = "F"))
+  }
+}
+
+
+#' Distance between two A-matrices
+#' 
+#' @description This function calculates the distance between two input A-matrices.
+#' @param A1 The first A-matrix.
+#' @param A2 The second A-matrix.
+#' @param norm The norm for calculating distance, either "L1" or "L2".
+#' @return The distance between two A-matrices.
+#' @examples 
+#' t1 <- ape::rcoal(5)
+#' t2 <- ape::rcoal(5)
+#' A1 <- gen_Amat(t1)
+#' A2 <- gen_Amat(t2)
+#' d <- dist_Amat(A1, A2, "L1")
+#' @export
+dist_Amat <- function(A1, A2, norm = "L1") {
+  if (norm == "L1") {
+    return (sum(abs(A1 - A2)))
+  } else if (norm == "L2") {
+    return (norm(A1-A2, type = "F"))
+  }
+}
+
 #' Distance between labeled trees
 #' 
 #' @description This function generates the distance between two labeled trees with the same number of tips. 
@@ -73,18 +166,38 @@ gen_Amat <- function(t) {
 #' @param t1 A \code{phylo} object.
 #' @param t2 A \code{phylo} object, with the same number of tips as t1.
 #' @param alpha A number between 0 and 1. The weight that we put on F-matrix.
+#' @param weight A logical variable indicating if branch length information is considered.
+#' @param norm The norm for calculating distance, either "L1" or "L2".
 #' @return The distance between two labeled trees.
 #' @examples 
 #' t1 <- ape::rcoal(5)
 #' t2 <- ape::rcoal(5)
-#' dist <- label_dist(t1, t2)
+#' d <- dist_label_tree(t1, t2)
 #' @export
-label_dist <- function(t1, t2, alpha) {
+dist_label_tree <- function(t1, t2, alpha = 0.5, weighted = F, norm = "L1") {
   F1 <- gen_Fmat(t1)
   F2 <- gen_Fmat(t2)
   A1 <- gen_Amat(t1)
   A2 <- gen_Amat(t2)
-  return(alpha * norm(F1-F2, type = "F") + (1-alpha) * norm(A1-A2, type = "F"))
+  n <- dim(F1)[1] + 1
+  
+  if (norm == "L1") {
+    scale_F <- n^3
+    scale_A <- n^2
+  } else if (norm == "L2") {
+    scale_F <- n^2
+    scale_A <- n
+  }
+  
+  if (weighted) {
+    W1 <- gen_Wmat(t1)
+    W2 <- gen_Wmat(t2)
+    return ((alpha / scale_F) * dist_Fmat_weighted(F1, F2, W1, W2, norm = norm) + ((1-alpha) / scale_A)  * dist_Amat(A1, A2, norm = norm))
+  } else if (!weighted) {
+    return ((alpha / scale_F) * dist_Fmat(F1, F2, norm = norm) + ((1-alpha) / scale_A)  * dist_Amat(A1, A2, norm = norm))
+  }
 }
+
+
 
 
