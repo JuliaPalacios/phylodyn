@@ -165,7 +165,7 @@ dist_Amat <- function(A1, A2, norm = "L1") {
 #' It is calculated as a weighted average of F-matrix norm and A-matrix norm.
 #' @param t1 A \code{phylo} object.
 #' @param t2 A \code{phylo} object, with the same number of tips as t1.
-#' @param alpha A number between 0 and 1. The weight that we put on F-matrix.
+#' @param alpha A number between 0 and 1. The weight we put on F-matrix. 1-alpha is the weight we put on A-matrix.
 #' @param weight A logical variable indicating if branch length information is considered.
 #' @param norm The norm for calculating distance, either "L1" or "L2".
 #' @return The distance between two labeled trees.
