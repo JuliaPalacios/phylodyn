@@ -1662,12 +1662,6 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   if (alg == "ESS")
   {
     res_MCMC = sampling_ESS(data = dataset, para = para, setting = setting,
-                            init = init, samp_alg = samp_alg, kappa_alg = kappa_alg,
-                            printevery = printevery)
-  }
-  if (alg == "bound_ESS")
-  {
-    res_MCMC = sampling_bound_ESS(data = dataset, para = para, setting = setting,
                             init = init, samp_alg = samp_alg, kappa_alg = kappa_alg,bound=bound,
                             printevery = printevery)
   }
