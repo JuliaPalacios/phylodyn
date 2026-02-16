@@ -1,6 +1,6 @@
 ###Functions for Bounded Coalescent 
 ###Piecewise constant prior and  MLE
-###Authors: Mackenzie Simper and Julia Palacios
+###Authors: Mackenzie Simper, Bingjing Tang and Julia Palacios
 ###Oct 2024
 
 
