@@ -1063,6 +1063,11 @@ sampling = function(data, para, alg, setting, init, verbose=TRUE, printevery=100
   return(result)
 }
 
+ESS_none_ll_bound = function(f, lik_init)
+{
+  return(coal_loglik_bounded(init = lik_init, f = f)$ll)
+}
+               
 ESS_none_ll = function(f, lik_init)
 {
   return(coal_loglik(init = lik_init, f = f))
