@@ -248,30 +248,74 @@ bound_prob0<-function(fgrid,deltagrid,n){
 }
 
 
-coal_loglik_bounded = function(init, f, bound)
+##used for ESS
+coal_loglik_bounded = function(init, f)
 {
   if (init$ng != length(f))
     stop(paste("Incorrect length for f; should be", init$ng))
   fext =f
   f = rep(f, init$gridrep)
-  #print(fext)
-  Dext = diff(init$args$grid)
-  Dext[length(Dext)]<-Dext[length(Dext)]+(bound-max(init$args$grid))
-  #Dext = c(init$D,(bound-max(init$args$grid)))
-  #print(Dext)
-  #gridext=c(init$args$grid,bound)
-  llnocoal = init$D * init$C * exp(-f)
- # print(Dext)
-#  print(fext)
-#  print(init$ns)
-  bound_probability<-bound_prob0(fext,Dext,init$ns)
   
-  lls = -init$y * f - llnocoal -log(bound_probability$totprob)
+  ntip <- sum(init$ns)
   
-  ll = sum(lls[!is.nan(lls)])
-  dll = apply(init$rep_idx,1,function(idx)sum(-init$y[idx[1]:idx[2]]+llnocoal[idx[1]:idx[2]]))-bound_probability$totgradient # gradient of log-likelihood wrt f_midpts
-  return(list(ll=ll,dll=dll))
+  r_func <- function(k, j) {
+    if (j == 1) return(1)
+    prod <- 1
+    for (m in 1:(j - 1)) {
+      prod <- prod * ((2*m + 1)/(2*m - 1)) * ((k - m)/(k + m))
+    }
+    (-1)^(j - 1) * prod
+  }
+  
+  r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
+  com_vec <- choose(seq_len(ntip), 2)
+  
+    
+    llnocoal  <- init$D * init$C * exp(-f)
+    sllnocoal <- init$D * exp(-f)
+    
+    Lambda <- sum(sllnocoal)
+    bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
+    print(bound_prob)
+    # your original scalar: ll = sum(-y*f - llnocoal - log(bound_prob))
+    ll_vec <- -init$y * f - llnocoal - log(bound_prob)
+    ll <- sum(ll_vec[!is.nan(ll_vec)])
+    
+    grad_bound <- sum(r_ntip * com_vec * exp(-com_vec * Lambda))
+    
+    dll <- apply(init$rep_idx, 1, function(idx) {
+      sum(-init$y[idx[1]:idx[2]] + llnocoal[idx[1]:idx[2]])
+    }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
+      sum(sllnocoal[idx[1]:idx[2]])
+    })
+    return(list(ll=ll,dll=dll))
 }
+                   
+# 
+# coal_loglik_bounded = function(init, f, bound)
+# {
+#   if (init$ng != length(f))
+#     stop(paste("Incorrect length for f; should be", init$ng))
+#   fext =f
+#   f = rep(f, init$gridrep)
+#   #print(fext)
+#   Dext = diff(init$args$grid)
+#   Dext[length(Dext)]<-Dext[length(Dext)]+(bound-max(init$args$grid))
+#   #Dext = c(init$D,(bound-max(init$args$grid)))
+#   #print(Dext)
+#   #gridext=c(init$args$grid,bound)
+#   llnocoal = init$D * init$C * exp(-f)
+#   # print(Dext)
+#   #  print(fext)
+#   #  print(init$ns)
+#   bound_probability<-bound_prob0(fext,Dext,init$ns)
+#   
+#   lls = -init$y * f - llnocoal -log(bound_probability$totprob)
+#   
+#   ll = sum(lls[!is.nan(lls)])
+#   dll = apply(init$rep_idx,1,function(idx)sum(-init$y[idx[1]:idx[2]]+llnocoal[idx[1]:idx[2]]))-bound_probability$totgradient # gradient of log-likelihood wrt f_midpts
+#   return(list(ll=ll,dll=dll))
+# }
 
 Ne_gradient_ascent <- function(f_init, lik_init, bound, eps, eta) {
   diff = 1
