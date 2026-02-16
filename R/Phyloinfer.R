@@ -1091,7 +1091,7 @@ ESS_ext_ll = function(f, lik_init, Ngrid, covar_vals = NULL)
 
 sampling_ESS = function(data, para, setting, init,
                         samp_alg = "none", kappa_alg = "gibbs",
-                        verbose=TRUE, printevery=100)
+                        verbose=TRUE,bound=NULL, printevery=100)
 {
   # pass the data and parameters
   lik_init = data$lik_init
@@ -1128,9 +1128,13 @@ sampling_ESS = function(data, para, setting, init,
   loglik = rep(NA, length(recorded_iters))
   logpos = rep(NA, length(recorded_iters))
   
-  if (samp_alg == "none")
+  if (samp_alg == "none" & is.null(bound))
   {
     ll = ESS_none_ll
+  }
+  else if (samp_alg == "none" )
+  {
+    ll = ESS_none_ll_bound
   }
   else if (samp_alg == "fixed")
   {
