@@ -1527,6 +1527,7 @@ mcmc_sampling_times = function(dataset,sufficient,alg, nsamp, nburnin=0, nsubsam
 #' @param kappa_alg selects sampling algorithm for kappa. One of "gibbs" 
 #'   (default) or "whiten".
 #' @param beta_vars numeric vector prior variances of the beta hyperparameters.
+#' @param bound numeric value indicating upper bound on TMRC (bounded coalescent)                              
 #' @param printevery integer how many MCMC steps between writing output to the 
 #'   console.
 #'   
@@ -1537,7 +1538,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
                          f_init = rep(1, ngrid-1), kappa = 1,
                          covariates=NULL, betas=rep(0, 2+length(covariates)),
                          samp_alg = "none", kappa_alg = "gibbs",
-                         beta_vars = rep(100, length(betas)), bound=1, printevery=100)
+                         beta_vars = rep(100, length(betas)), bound=NULL, printevery=100)
 {
   if (class(dataset) == "phylo")
   {
@@ -1566,7 +1567,13 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   
   stepsz = TrjL/Nleap
   
-  grid_bds = range(c(coal_times,samp_times))
+  #grid_bds = range(c(coal_times,samp_times))
+  if (is.null(bound)){
+    grid_bds = range(c(coal_times,samp_times))
+  }else{
+    grid_bds = range(c(coal_times,bound+1e-4,samp_times))
+  }
+    
   #Ngrid = 100
   
   grid = seq(grid_bds[1],grid_bds[2],length.out=ngrid)
