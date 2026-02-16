@@ -1528,7 +1528,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
                          f_init = rep(1, ngrid-1), kappa = 1,
                          covariates=NULL, betas=rep(0, 2+length(covariates)),
                          samp_alg = "none", kappa_alg = "gibbs",
-                         beta_vars = rep(100, length(betas)), printevery=100)
+                         beta_vars = rep(100, length(betas)), bound=1, printevery=100)
 {
   if (class(dataset) == "phylo")
   {
@@ -1621,7 +1621,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
     u  = U_kappa(theta,lik_init,invC,prec_alpha,prec_beta)$logpos
     du = NULL
   }
-  else if (alg == "ESS")
+  else if (alg == "ESS" | alg == "bound_ESS")
   {
     u = NULL
     #u  = coal_loglik(init = lik_init, f = theta[-Ngrid])
@@ -1649,6 +1649,12 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
                             init = init, samp_alg = samp_alg, kappa_alg = kappa_alg,
                             printevery = printevery)
   }
+  if (alg == "bound_ESS")
+  {
+    res_MCMC = sampling_bound_ESS(data = dataset, para = para, setting = setting,
+                            init = init, samp_alg = samp_alg, kappa_alg = kappa_alg,bound=bound,
+                            printevery = printevery)
+  }
   else
   {
     res_MCMC = sampling(data = dataset, para = para, alg = alg, setting = setting,
@@ -1663,7 +1669,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   #cleaned_res = burnin_subsample(res = res_MCMC, burnin = 0)
   
   logfmat = res_MCMC$samp[,1:(ngrid-1)]
-  if (alg == "ESS" && samp_alg %in% c("MH", "ESS"))
+  if ((alg == "ESS" | alg == "bound_ESS") && samp_alg %in% c("MH", "ESS"))
   {
     params = res_MCMC$samp[,ngrid:(ngrid+2)]
   }
