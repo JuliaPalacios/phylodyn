@@ -286,7 +286,7 @@ coal_loglik_bounded = function(init, f)
     
     dll <- apply(init$rep_idx, 1, function(idx) {
       sum(-init$y[idx[1]:idx[2]] + llnocoal[idx[1]:idx[2]])
-    }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
+    }) + (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
       sum(sllnocoal2[idx[1]:idx[2]])
     })
     return(list(ll=ll,dll=dll))
@@ -525,7 +525,7 @@ bound_coal_loglik <- function(init) {
     # this is your original dll (gradient of ll wrt par)
     dll <- apply(init$rep_idx, 1, function(idx) {
       sum(-init$y[idx[1]:idx[2]] + llnocoal[idx[1]:idx[2]])
-    }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
+    }) + (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
       sum(sllnocoal2[idx[1]:idx[2]])
     })
     
