@@ -493,12 +493,12 @@ bound_coal_loglik <- function(init) {
     
     f <- rep(par, init$gridrep)
     
-    llnocoal  <- init$D * init$C * exp(-f)
+    llnocoal  <- init$D * init$C * exp(-f) #ok, the last interval will have likelihood 0
     sllnocoal <- init$D * exp(-f)
     
     Lambda <- sum(sllnocoal)
     bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
-    
+    #print(bound_prob)
     # your original scalar: ll = sum(-y*f - llnocoal - log(bound_prob))
     ll_vec <- -init$y * f - llnocoal - log(bound_prob)
     ll <- sum(ll_vec[!is.nan(ll_vec)])
@@ -515,6 +515,7 @@ bound_coal_loglik <- function(init) {
     
     llnocoal  <- init$D * init$C * exp(-f)
     sllnocoal <- init$D * exp(-f)
+    sllnocoal2 <- init$D 
     
     Lambda <- sum(sllnocoal)
     bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
@@ -524,7 +525,7 @@ bound_coal_loglik <- function(init) {
     dll <- apply(init$rep_idx, 1, function(idx) {
       sum(-init$y[idx[1]:idx[2]] + llnocoal[idx[1]:idx[2]])
     }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
-      sum(sllnocoal[idx[1]:idx[2]])
+      sum(sllnocoal2[idx[1]:idx[2]])
     })
     
     # gradient of nll = -ll is -dll
