@@ -391,7 +391,7 @@ coalsim_bounded <- function(samp_times, n_sampled, traj, bound, ...)
     #  (lins - 1) * stats::integrate(dom_rate, start, start + t)$value - target
     is_stepfun = FALSE
   }
-  val_upper<-2*traj_inv(bound)
+  val_upper<-min(10,2*traj_inv(bound))
   
   ##hazard target
   r_func <- function(k,j) {
