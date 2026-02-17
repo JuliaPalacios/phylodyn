@@ -279,8 +279,8 @@ coal_loglik_bounded = function(init, f)
     bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
     #print(bound_prob)
     # your original scalar: ll = sum(-y*f - llnocoal - log(bound_prob))
-    ll_vec <- -init$y * f - llnocoal - log(bound_prob)
-    ll <- sum(ll_vec[!is.nan(ll_vec)])
+    ll_vec <- -init$y * f - llnocoal 
+    ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
     
     grad_bound <- sum(r_ntip * com_vec * exp(-com_vec * Lambda))
     
@@ -499,10 +499,9 @@ bound_coal_loglik <- function(init) {
     
     Lambda <- sum(sllnocoal)
     bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
-    #print(bound_prob)
-    # your original scalar: ll = sum(-y*f - llnocoal - log(bound_prob))
-    ll_vec <- -init$y * f - llnocoal - log(bound_prob)
-    ll <- sum(ll_vec[!is.nan(ll_vec)])
+   
+    ll_vec <- -init$y * f - llnocoal 
+    ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
     
     # optim minimizes, so return negative log-likelihood (nll)
     -ll
@@ -529,7 +528,7 @@ bound_coal_loglik <- function(init) {
       sum(sllnocoal[idx[1]:idx[2]])
     })
     
-    # gradient of nll = -ll is -dll
+    
     -as.numeric(dll)
   }
   
