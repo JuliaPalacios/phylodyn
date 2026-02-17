@@ -580,7 +580,7 @@ bounded_skyline <- function(data, bound = 1) {
     fn      = obj$fn,
     gr      = obj$gr,
     method  = "BFGS",
-    control = list(maxit = 1000, reltol = 1e-10)
+    control = list(maxit = 1000, reltol = 1e-10, parscale = rep(0.05, length(par0)))
   )
   Ne=exp(fit$par)
   l=length(Ne)
