@@ -273,7 +273,7 @@ coal_loglik_bounded = function(init, f)
     
     llnocoal  <- init$D * init$C * exp(-f)
     sllnocoal <- init$D * exp(-f)
-    sllnocoal2 <- init$D               
+                
     
     Lambda <- sum(sllnocoal)
     bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
@@ -286,8 +286,8 @@ coal_loglik_bounded = function(init, f)
     
     dll <- apply(init$rep_idx, 1, function(idx) {
       sum(-init$y[idx[1]:idx[2]] + llnocoal[idx[1]:idx[2]])
-    }) + (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
-      sum(sllnocoal2[idx[1]:idx[2]])
+    }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
+      sum(sllnocoal[idx[1]:idx[2]])
     })
     return(list(ll=ll,dll=dll))
 }
@@ -516,7 +516,7 @@ bound_coal_loglik <- function(init) {
     
     llnocoal  <- init$D * init$C * exp(-f)
     sllnocoal <- init$D * exp(-f)
-    sllnocoal2 <- init$D 
+    
     
     Lambda <- sum(sllnocoal)
     bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
@@ -525,8 +525,8 @@ bound_coal_loglik <- function(init) {
     # this is your original dll (gradient of ll wrt par)
     dll <- apply(init$rep_idx, 1, function(idx) {
       sum(-init$y[idx[1]:idx[2]] + llnocoal[idx[1]:idx[2]])
-    }) + (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
-      sum(sllnocoal2[idx[1]:idx[2]])
+    }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
+      sum(sllnocoal[idx[1]:idx[2]])
     })
     
     # gradient of nll = -ll is -dll
@@ -542,7 +542,7 @@ bound_coal_loglik <- function(init) {
 #' @param data \code{phylo} object or list containing vectors of coalescent 
 #'   times \code{coal_times}, sampling times \code{samp_times}, and number 
 #'   sampled per sampling time \code{n_sampled}.
-#' @param bound proivde uper bound on TMRCA
+#' @param bound provide uper bound on TMRCA
 #'   
 #' @return Phylodynamic reconstruction of effective population size at grid 
 #'   points. 
