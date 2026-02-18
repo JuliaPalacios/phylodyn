@@ -586,4 +586,49 @@ bounded_skyline <- function(data, bound = 1) {
   l=length(Ne)
   return(list(Ne=Ne[-l],grid=grid[-l]))
 }
-             
+
+
+#' MLE estimation of Ne from bounded coalescent.
+#' 
+#' @param data \code{phylo} object or list containing vectors of coalescent 
+#'   times \code{coal_times}, sampling times \code{samp_times}, and number 
+#'   sampled per sampling time \code{n_sampled}.
+#' @param bound provide uper bound on TMRCA
+#'   
+#' @return Phylodynamic reconstruction of effective population size at grid 
+#'   points. 
+#' 
+#' @examples
+#' data<-coalsim_bounded(c(0),c(10),constant,bound=0.5)
+#' bounded_skyline_ascent(data, lengthout=10, bound=0.5)
+bounded_skyline_ascent<-function (data, bound = 1) 
+{
+  if (inherits(data, "phylo")) {
+    phy <- summarize_phylo(data)
+  }
+  else if (all(c("coal_times", "samp_times", "n_sampled") %in% 
+               names(data))) {
+    phy <- with(data, list(samp_times = samp_times, coal_times = coal_times, 
+                           n_sampled = n_sampled))
+  }
+  else stop("data must be a phylo or a list/data.frame with coal_times, samp_times, n_sampled")
+  grid = c(0, data$coal_times, bound + 1e-04)
+  lik_init <- phylodyn:::coal_lik_init(samp_times = phy$samp_times, 
+                                       n_sampled = phy$n_sampled, coal_times = phy$coal_times, 
+                                       grid = grid)
+  f_init = rep(0, lik_init$ng)
+  #obj <- bound_coal_loglik(lik_init)
+  #par0 <- rep(0, lik_init$ng)
+  eta = 0.01
+  eps = 0.02
+  
+  fit<-phylodyn:::Ne_gradient_ascent(f_init, lik_init, bound, eps, eta)
+  
+  # fit <- optim(par = par0, fn = obj$fn, gr = obj$gr, method = "BFGS", 
+  #              control = list(maxit = 1000, reltol = 1e-10, parscale = rep(0.05, 
+  #                                                                          length(par0))))
+  Ne = exp(c(fit[[1]][1],fit[[1]]))
+  l = length(Ne)
+  return(list(Ne = Ne[-l], grid = grid[-l]))
+}
+                   
