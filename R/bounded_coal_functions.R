@@ -355,6 +355,7 @@ Ne_gradient_ascent <- function(f_init, lik_init, bound, eps, eta) {
 #' @param n_sampled numeric vector of samples taken per sampling time.
 #' @param traj function that returns effective population size at time t.
 #' @param bound upper bound on the TMRCA
+#' @param val_upper upper value for root finding in transformation method
 #'   
 #' @return A list containing vectors of coalescent times \code{coal_times}, 
 #'   intercoalescent times \code{intercoal_times}, and number of active lineages
@@ -364,7 +365,7 @@ Ne_gradient_ascent <- function(f_init, lik_init, bound, eps, eta) {
 #' 
 #' @examples
 #' coalsim_bounded(0:2, 3:1, unif_traj, bound=1)
-coalsim_bounded <- function(samp_times, n_sampled, traj, bound, ...)
+coalsim_bounded <- function(samp_times, n_sampled, traj=constant, bound=1, val_upper=10, ...)
 {
   #This function is not functional for heterochronous sampling
   #the r_j factors need to be updated
