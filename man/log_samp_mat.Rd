@@ -4,8 +4,13 @@
 \alias{log_samp_mat}
 \title{Calculate posterior sampling intensities}
 \usage{
-log_samp_mat(popTbl, betaTbl, covariates = NULL, powBetaTbl = NULL,
-  pow_covariates = NULL)
+log_samp_mat(
+  popTbl,
+  betaTbl,
+  covariates = NULL,
+  powBetaTbl = NULL,
+  pow_covariates = NULL
+)
 }
 \arguments{
 \item{popTbl}{table of log-effective population sizes.}
@@ -29,4 +34,3 @@ Calculate posterior sampling intensities
 \examples{
 2 + 2
 }
-

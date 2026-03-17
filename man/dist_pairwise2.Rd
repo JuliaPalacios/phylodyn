@@ -2,7 +2,7 @@
 % Please edit documentation in R/tree_distance.R
 \name{dist_pairwise2}
 \alias{dist_pairwise2}
-\title{Distance between two ranked tree shapes or ranked genealogies (Version 2)}
+\title{Distance between two ranked tree shapes or ranked genealogies (Version 2, fixed error: July 2023, use version 1)}
 \usage{
 dist_pairwise2(tr.1, tr.2, dist.method = "l1", weighted = FALSE)
 }
@@ -19,7 +19,7 @@ dist_pairwise2(tr.1, tr.2, dist.method = "l1", weighted = FALSE)
 Distance between the input trees \code{tr.1} and \code{tr.2}.
 }
 \description{
-Distance between two ranked tree shapes or ranked genealogies (Version 2)
+Distance between two ranked tree shapes or ranked genealogies (Version 2, fixed error: July 2023, use version 1)
 }
 \details{
 The input trees, tr.1 and tr.2 must have the same number of taxa.

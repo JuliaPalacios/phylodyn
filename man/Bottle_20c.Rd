@@ -4,7 +4,9 @@
 \name{Bottle_20c}
 \alias{Bottle_20c}
 \title{Bottle_20c}
-\format{An object of class \code{multiPhylo} of length 1435.}
+\format{
+An object of class \code{multiPhylo} of length 1435.
+}
 \usage{
 Bottle_20c
 }
@@ -12,4 +14,3 @@ Bottle_20c
 This dataset is a \code{multiPhylo} object of 1435 coalescent trees of 20 individuals simulated under the SMC' process. This dataset was generted with macs  using the following command: \code{./macs20 300000 -t 4.0 -eN 0 1 -eN 0.3 0.1 -eN 0.5 1 -T -r .002 -h 1 (SEED: 1420826310)}
 }
 \keyword{datasets}
-

@@ -4,8 +4,14 @@
 \alias{posterior_coal_check}
 \title{Posterior predictive check for coalescent model}
 \usage{
-posterior_coal_check(coal_times, samp_times, n_sampled, logpop, grid,
-  cap = NULL)
+posterior_coal_check(
+  coal_times,
+  samp_times,
+  n_sampled,
+  logpop,
+  grid,
+  cap = NULL
+)
 }
 \arguments{
 \item{coal_times}{numeric vector of coalescent times.}
@@ -23,4 +29,3 @@ posterior_coal_check(coal_times, samp_times, n_sampled, logpop, grid,
 \description{
 Posterior predictive check for coalescent model
 }
-

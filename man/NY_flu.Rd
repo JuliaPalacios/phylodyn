@@ -4,7 +4,9 @@
 \name{NY_flu}
 \alias{NY_flu}
 \title{New York Influenza Genealogy}
-\format{An object of class \code{phylo} of length 4.}
+\format{
+An object of class \code{phylo} of length 4.
+}
 \usage{
 NY_flu
 }
@@ -18,4 +20,3 @@ Holmes The genomic and epidemiological dynamics of human influenza A virus.
 Nature, 453(7195): 615-619, 2008.
 }
 \keyword{datasets}
-

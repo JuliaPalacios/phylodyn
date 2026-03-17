@@ -4,8 +4,7 @@
 \alias{pref_sample}
 \title{Sample preferentially}
 \usage{
-pref_sample(f, lim = c(0, 1), c = 1, beta = 1, upper = NULL,
-  grid.len = 1000)
+pref_sample(f, lim = c(0, 1), c = 1, beta = 1, upper = NULL, grid.len = 1000)
 }
 \arguments{
 \item{f}{function to be sampled from preferentially.}
@@ -26,4 +25,3 @@ grid.len points between min(lim) and max(lim) to find upper bound.}
 Sample values from an inhomogeneous Poisson process with intensity
   c*f(t)^beta.
 }
-

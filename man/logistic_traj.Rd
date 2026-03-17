@@ -26,4 +26,3 @@ Seasonal logistic trajectory
 \examples{
 unif_traj(0:12)
 }
-

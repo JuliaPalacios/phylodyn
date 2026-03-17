@@ -23,4 +23,3 @@ model.}
 \description{
 Posterior predictive check for inhomogenous Poisson process sampling model
 }
-

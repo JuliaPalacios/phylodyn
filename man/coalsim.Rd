@@ -4,8 +4,15 @@
 \alias{coalsim}
 \title{Simulate from inhomogeneous, heterochronous coalescent}
 \usage{
-coalsim(samp_times, n_sampled, traj, method = "tt", val_upper = 10,
-  lower_bound = 1, ...)
+coalsim(
+  samp_times,
+  n_sampled,
+  traj,
+  method = "tt",
+  val_upper = 10,
+  lower_bound = 1,
+  ...
+)
 }
 \arguments{
 \item{samp_times}{numeric vector of sampling times.}
@@ -37,4 +44,3 @@ Simulate from inhomogeneous, heterochronous coalescent
 \examples{
 coalsim(0:2, 3:1, unif_traj, lower_bound=10)
 }
-

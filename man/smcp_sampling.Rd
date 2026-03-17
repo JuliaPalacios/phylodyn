@@ -4,9 +4,19 @@
 \alias{smcp_sampling}
 \title{SMC' sampler--inference from local genealogies}
 \usage{
-smcp_sampling(data, nsamp, nburnin, grid, alpha = 0.001, beta = 0.001,
-  stepsz = 0.1, Nleap = 15, rand_leap = TRUE, scaling = 10,
-  tol = 1e-05)
+smcp_sampling(
+  data,
+  nsamp,
+  nburnin,
+  grid,
+  alpha = 0.001,
+  beta = 0.001,
+  stepsz = 0.1,
+  Nleap = 15,
+  rand_leap = TRUE,
+  scaling = 10,
+  tol = 1e-05
+)
 }
 \arguments{
 \item{data}{a list containing sufficient statistics}
@@ -37,4 +47,3 @@ A matrix of sim rows. Entry x_{i,j} has the n-j+1-th coalescent time of the i-th
 \description{
 SMC' sampler--inference from local genealogies
 }
-

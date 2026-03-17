@@ -4,7 +4,7 @@
 \alias{dist_pairwise}
 \title{Distance between two ranked tree shapes or ranked genealogies}
 \usage{
-dist_pairwise(tr.1, tr.2, dist.method = "l1", weighted = FALSE)
+dist_pairwise(tr.1, tr.2, dist.method = "l1", weighted = FALSE, tol = 13)
 }
 \arguments{
 \item{tr.1}{An object of class \code{phylo}. Can be either isochronous or heterochronous.}
