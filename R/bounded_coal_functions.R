@@ -11,28 +11,28 @@
 #'        bound Value of upper bound on TMRCA
 #' @return grid and Ne estimates
 #' @export
-# MLE_BoundCoal<-function(data,lengthout=5,bound,eps=.02,eta=.01){
+MLE_BoundCoal<-function(data,lengthout=5,bound,eps=.02,eta=.01){
   
-#   if (class(data) == "phylo") {
-#     phy <- summarize_phylo(data)
-#     n<-data$Nnode+1
-#   }
-#   else if (all(c("coal_times", "samp_times", "n_sampled") %in% 
-#                names(data))) {
-#     phy <- with(data, list(samp_times = samp_times, coal_times = coal_times, 
-#                            n_sampled = n_sampled))
-#     n<-n_sampled
-#   }  
-#   grid_bds<-range(0, bound+.0001) #range(c(coal_times,samp_times))
-#   grid = seq(grid_bds[1],grid_bds[2], length.out = lengthout)
-#   lik_init = phylodyn:::coal_lik_init(samp_times = phy$samp_times, n_sampled = phy$n_sampled, 
-#                                       coal_times = phy$coal_times, grid=grid)
-#   f_init = rep(0, lik_init$ng)
-#   eta = 0.01
-#   eps = 0.02
-#   gradResult <- Ne_gradient_ascent(f_init, lik_init, bound, eps, eta)
-#   return(list(grid=grid,x=grid,effpop=exp(c(gradResult[[1]][1],gradResult[[1]]))))
-# }
+  if (class(data) == "phylo") {
+    phy <- summarize_phylo(data)
+    n<-data$Nnode+1
+  }
+  else if (all(c("coal_times", "samp_times", "n_sampled") %in% 
+               names(data))) {
+    phy <- with(data, list(samp_times = samp_times, coal_times = coal_times, 
+                           n_sampled = n_sampled))
+    n<-n_sampled
+  }  
+  grid_bds<-range(0, bound+.0001) #range(c(coal_times,samp_times))
+  grid = seq(grid_bds[1],grid_bds[2], length.out = lengthout)
+  lik_init = phylodyn:::coal_lik_init(samp_times = phy$samp_times, n_sampled = phy$n_sampled, 
+                                      coal_times = phy$coal_times, grid=grid)
+  f_init = rep(0, lik_init$ng)
+  eta = 0.01
+  eps = 0.02
+  gradResult <- Ne_gradient_ascent(f_init, lik_init, bound, eps, eta)
+  return(list(grid=grid,x=grid,effpop=exp(c(gradResult[[1]][1],gradResult[[1]]))))
+}
 
 
 #computes all values of probability2
