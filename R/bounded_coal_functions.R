@@ -600,6 +600,7 @@ bound_coal_loglik <- function(init) {
 #' @examples
 #' data<-coalsim_bounded(c(0),c(10),constant,bound=0.5)
 #' bounded_skyline_ascent(data, lengthout=10, bound=0.5)
+#' @export
 bounded_skyline_ascent<-function (data, bound = 1) 
 {
   if (inherits(data, "phylo")) {
