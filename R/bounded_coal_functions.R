@@ -11,28 +11,28 @@
 #'        bound Value of upper bound on TMRCA
 #' @return grid and Ne estimates
 #' @export
-MLE_BoundCoal<-function(data,lengthout=5,bound,eps=.02,eta=.01){
+# MLE_BoundCoal<-function(data,lengthout=5,bound,eps=.02,eta=.01){
   
-  if (class(data) == "phylo") {
-    phy <- summarize_phylo(data)
-    n<-data$Nnode+1
-  }
-  else if (all(c("coal_times", "samp_times", "n_sampled") %in% 
-               names(data))) {
-    phy <- with(data, list(samp_times = samp_times, coal_times = coal_times, 
-                           n_sampled = n_sampled))
-    n<-n_sampled
-  }  
-  grid_bds<-range(0, bound+.0001) #range(c(coal_times,samp_times))
-  grid = seq(grid_bds[1],grid_bds[2], length.out = lengthout)
-  lik_init = phylodyn:::coal_lik_init(samp_times = phy$samp_times, n_sampled = phy$n_sampled, 
-                                      coal_times = phy$coal_times, grid=grid)
-  f_init = rep(0, lik_init$ng)
-  eta = 0.01
-  eps = 0.02
-  gradResult <- Ne_gradient_ascent(f_init, lik_init, bound, eps, eta)
-  return(list(grid=grid,x=grid,effpop=exp(c(gradResult[[1]][1],gradResult[[1]]))))
-}
+#   if (class(data) == "phylo") {
+#     phy <- summarize_phylo(data)
+#     n<-data$Nnode+1
+#   }
+#   else if (all(c("coal_times", "samp_times", "n_sampled") %in% 
+#                names(data))) {
+#     phy <- with(data, list(samp_times = samp_times, coal_times = coal_times, 
+#                            n_sampled = n_sampled))
+#     n<-n_sampled
+#   }  
+#   grid_bds<-range(0, bound+.0001) #range(c(coal_times,samp_times))
+#   grid = seq(grid_bds[1],grid_bds[2], length.out = lengthout)
+#   lik_init = phylodyn:::coal_lik_init(samp_times = phy$samp_times, n_sampled = phy$n_sampled, 
+#                                       coal_times = phy$coal_times, grid=grid)
+#   f_init = rep(0, lik_init$ng)
+#   eta = 0.01
+#   eps = 0.02
+#   gradResult <- Ne_gradient_ascent(f_init, lik_init, bound, eps, eta)
+#   return(list(grid=grid,x=grid,effpop=exp(c(gradResult[[1]][1],gradResult[[1]]))))
+# }
 
 
 #computes all values of probability2
@@ -278,7 +278,6 @@ coal_loglik_bounded = function(init, f)
     Lambda <- sum(sllnocoal)
     bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
     #print(bound_prob)
-    # your original scalar: ll = sum(-y*f - llnocoal - log(bound_prob))
     ll_vec <- -init$y * f - llnocoal 
     ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
     
@@ -550,42 +549,42 @@ bound_coal_loglik <- function(init) {
 #' @examples
 #' data<-coalsim_bounded(c(0),c(10),constant,bound=0.5)
 #' bounded_skyline(data, lengthout=10, bound=0.5)
-bounded_skyline <- function(data, bound = 1) {
-  if (inherits(data, "phylo")) {
-    phy <- summarize_phylo(data)
-  } else if (all(c("coal_times", "samp_times", "n_sampled") %in% names(data))) {
-    phy <- with(data, list(
-      samp_times = samp_times,
-      coal_times = coal_times,
-      n_sampled  = n_sampled
-    ))
-  } else stop("data must be a phylo or a list/data.frame with coal_times, samp_times, n_sampled")
+# bounded_skyline <- function(data, bound = 1) {
+#   if (inherits(data, "phylo")) {
+#     phy <- summarize_phylo(data)
+#   } else if (all(c("coal_times", "samp_times", "n_sampled") %in% names(data))) {
+#     phy <- with(data, list(
+#       samp_times = samp_times,
+#       coal_times = coal_times,
+#       n_sampled  = n_sampled
+#     ))
+#   } else stop("data must be a phylo or a list/data.frame with coal_times, samp_times, n_sampled")
   
-  #grid <- seq(0, bound + 1e-4, length.out = lengthout)
-  grid = c(0,data$coal_times,bound+1e-4)
-  lengthout<-length(grid)
+#   #grid <- seq(0, bound + 1e-4, length.out = lengthout)
+#   grid = c(0,data$coal_times,bound+1e-4)
+#   lengthout<-length(grid)
  
-   lik_init <- phylodyn:::coal_lik_init(
-    samp_times = phy$samp_times,
-    n_sampled  = phy$n_sampled,
-    coal_times = phy$coal_times,
-    grid       = grid
-  )
+#    lik_init <- phylodyn:::coal_lik_init(
+#     samp_times = phy$samp_times,
+#     n_sampled  = phy$n_sampled,
+#     coal_times = phy$coal_times,
+#     grid       = grid
+#   )
   
-  obj <- bound_coal_loglik(lik_init)
-  par0 <- rep(0, lik_init$ng)
+#   obj <- bound_coal_loglik(lik_init)
+#   par0 <- rep(0, lik_init$ng)
   
-  fit <- optim(
-    par     = par0,
-    fn      = obj$fn,
-    gr      = obj$gr,
-    method  = "BFGS",
-    control = list(maxit = 1000, reltol = 1e-10, parscale = rep(0.05, length(par0)))
-  )
-  Ne=exp(fit$par)
-  l=length(Ne)
-  return(list(Ne=Ne[-l],grid=grid[-l]))
-}
+#   fit <- optim(
+#     par     = par0,
+#     fn      = obj$fn,
+#     gr      = obj$gr,
+#     method  = "BFGS",
+#     control = list(maxit = 1000, reltol = 1e-10, parscale = rep(0.05, length(par0)))
+#   )
+#   Ne=exp(fit$par)
+#   l=length(Ne)
+#   return(list(Ne=Ne[-l],grid=grid[-l]))
+# }
 
 
 #' MLE estimation of Ne from bounded coalescent.
