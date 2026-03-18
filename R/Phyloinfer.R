@@ -1135,6 +1135,7 @@ sampling_ESS = function(data, para, setting, init,
   else if (samp_alg == "none" & !is.null(bound) )
   {
     ll = ESS_none_ll_bound
+    print("ESS_none_ll_bound")
   }
   else if (samp_alg == "fixed")
   {
@@ -1174,6 +1175,7 @@ sampling_ESS = function(data, para, setting, init,
   {
     if (samp_alg == "none")
     {
+      print("this should be called")
       res = ESS(q_cur = f, l_cur = pos_summ$loglik, loglik = ll,
                 cholC = cholC/sqrt(kappa), lik_init = lik_init)
       f = res$q
