@@ -1645,7 +1645,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   }
   else
   {
-    stop('The algorithm is not in the list!')
+    stop('The algorithm is not in the list!!')
   }
   
   # MCMC sampling preparation
@@ -1659,7 +1659,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   init = list(theta = theta, u = u, du = du, betas = betas)
   
   # Run MCMC sampler
-  if (alg == "ESS")
+  if (alg == "ESS" || alg=="bound_ESS")
   {
     res_MCMC = sampling_ESS(data = dataset, para = para, setting = setting,
                             init = init, samp_alg = samp_alg, kappa_alg = kappa_alg,bound=bound,
@@ -1679,7 +1679,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   #cleaned_res = burnin_subsample(res = res_MCMC, burnin = 0)
   
   logfmat = res_MCMC$samp[,1:(ngrid-1)]
-  if ((alg == "ESS" | alg == "bound_ESS") && samp_alg %in% c("MH", "ESS"))
+  if ((alg == "ESS" || alg == "bound_ESS") && samp_alg %in% c("MH", "ESS"))
   {
     params = res_MCMC$samp[,ngrid:(ngrid+2)]
   }
