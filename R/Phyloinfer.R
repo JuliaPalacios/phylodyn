@@ -27,7 +27,7 @@ ESS = function(q_cur, l_cur, loglik, cholC, ...)
   
   q <- q_cur*cos(t) + nu*sin(t)
   l <- loglik(q, ...)
-  print("new l" proposed)
+  print("new l")
   print(l)
   while (l < logy)
   {
