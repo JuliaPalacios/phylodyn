@@ -26,6 +26,9 @@ ESS = function(q_cur, l_cur, loglik, cholC, ...)
   t_max <- t
   
   q <- q_cur*cos(t) + nu*sin(t)
+  print("proposed q")
+  print(q)
+  print(coal_loglik_bounded(q, ...)$ll)
   l <- loglik(q, ...)
   print("new l")
   print(l)
