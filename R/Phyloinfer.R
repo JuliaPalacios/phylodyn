@@ -1132,7 +1132,7 @@ sampling_ESS = function(data, para, setting, init,
   {
     ll = ESS_none_ll
   }
-  else if (samp_alg == "none" )
+  else if (samp_alg == "none" & !is.null(bound) )
   {
     ll = ESS_none_ll_bound
   }
@@ -1637,7 +1637,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
     u  = U_kappa(theta,lik_init,invC,prec_alpha,prec_beta)$logpos
     du = NULL
   }
-  else if (alg == "ESS" | alg == "bound_ESS")
+  else if (alg == "ESS" || alg == "bound_ESS")
   {
     u = NULL
     #u  = coal_loglik(init = lik_init, f = theta[-Ngrid])
