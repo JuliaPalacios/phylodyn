@@ -1573,7 +1573,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   if (is.null(bound)){
     grid_bds = range(c(coal_times,samp_times))
   }else{
-    grid_bds = range(c(coal_times,bound+1e-4,samp_times))
+    grid_bds = range(c(coal_times,bound + 1e-4,samp_times))
   }
     
   #Ngrid = 100
