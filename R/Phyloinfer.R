@@ -1644,6 +1644,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
     u = NULL
     #u  = coal_loglik(init = lik_init, f = theta[-Ngrid])
     du = NULL
+     print("This is ESS or bounded_ESS")
   }
   else
   {
@@ -1663,6 +1664,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   # Run MCMC sampler
   if (alg == "ESS" || alg=="bound_ESS")
   {
+     print("calling sampling_ESS")
     res_MCMC = sampling_ESS(data = dataset, para = para, setting = setting,
                             init = init, samp_alg = samp_alg, kappa_alg = kappa_alg,bound=bound,
                             printevery = printevery)
