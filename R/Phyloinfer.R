@@ -27,7 +27,8 @@ ESS = function(q_cur, l_cur, loglik, cholC, ...)
   
   q <- q_cur*cos(t) + nu*sin(t)
   l <- loglik(q, ...)
-  
+  print("new l" proposed)
+  print(l)
   while (l < logy)
   {
     # shrink the bracket and try a new point
