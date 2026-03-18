@@ -1175,7 +1175,9 @@ sampling_ESS = function(data, para, setting, init,
   {
     if (samp_alg == "none")
     {
-      print("this should be called")
+      print("this should be called, calling ESS")
+      print("This is in ll")
+      print(ll)
       res = ESS(q_cur = f, l_cur = pos_summ$loglik, loglik = ll,
                 cholC = cholC/sqrt(kappa), lik_init = lik_init)
       f = res$q
