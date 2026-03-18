@@ -14,7 +14,8 @@ ESS = function(q_cur, l_cur, loglik, cholC, ...)
 {  
   # choose ellipse
   nu = crossprod(cholC, stats::rnorm(length(q_cur)))
-  
+  print("current loglik")
+  print(l_cur)
   # log-likelihood threshold
   u = stats::runif(1)
   logy <- l_cur + log(u)
