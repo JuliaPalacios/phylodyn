@@ -257,7 +257,7 @@ coal_loglik_bounded = function(init, f)
   f = rep(f, init$gridrep)
   
   ntip <- sum(init$ns)
-  if !("r_ntip" %in% names(init)){
+  if (!"r_ntip" %in% names(init)){
   r_func <- function(k, j) {
     if (j == 1) return(1)
     prod <- 1
