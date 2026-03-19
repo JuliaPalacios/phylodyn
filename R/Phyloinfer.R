@@ -1579,6 +1579,17 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   if (is.null(bound)){
     grid_bds = range(c(coal_times,samp_times))
   }else{
+     r_func <- function(k, j) {
+    if (j == 1) return(1)
+    prod <- 1
+    for (m in 1:(j - 1)) {
+      prod <- prod * ((2*m + 1)/(2*m - 1)) * ((k - m)/(k + m))
+    }
+    (-1)^(j - 1) * prod
+  }
+  
+  r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
+  com_vec <- choose(seq_len(ntip), 2)
     grid_bds = range(c(coal_times,bound + 1e-4,samp_times))
   }
     
@@ -1656,6 +1667,10 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   {
     stop('The algorithm is not in the list!!')
   }
+  if (alg=="bound_ESS"){
+    lik_init$com_vec<-com_vec
+    lik_init$r_ntip<-r_ntip
+    }
   
   # MCMC sampling preparation
   dataset = list(lik_init = lik_init, covar_vals = covar_vals)
