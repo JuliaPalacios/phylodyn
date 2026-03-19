@@ -1587,7 +1587,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
     }
     (-1)^(j - 1) * prod
   }
-  ntip<-sum(nsampled)
+  ntip<-sum(n_sampled)
   r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
   com_vec <- choose(seq_len(ntip), 2)
     grid_bds = range(c(coal_times,bound + 1e-4,samp_times))
