@@ -257,7 +257,7 @@ coal_loglik_bounded = function(init, f)
   f = rep(f, init$gridrep)
   
   ntip <- sum(init$ns)
-  
+  if !("r_ntip" %in% names(init)){
   r_func <- function(k, j) {
     if (j == 1) return(1)
     prod <- 1
@@ -269,7 +269,10 @@ coal_loglik_bounded = function(init, f)
   
   r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
   com_vec <- choose(seq_len(ntip), 2)
-  
+  }else{
+    r_ntip<-init$r_ntip
+    com_vec<-init$com_vec
+    }
     
     llnocoal  <- init$D * init$C * exp(-f)
     sllnocoal <- init$D * exp(-f)
