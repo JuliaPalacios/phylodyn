@@ -1579,16 +1579,34 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   if (is.null(bound)){
     grid_bds = range(c(coal_times,samp_times))
   }else{
-     r_func <- function(k, j) {
-    if (j == 1) return(1)
-    prod <- 1
-    for (m in 1:(j - 1)) {
-      prod <- prod * ((2*m + 1)/(2*m - 1)) * ((k - m)/(k + m))
-    }
-    (-1)^(j - 1) * prod
+    
+  r_func_stable <- function(k, j) {
+  if (j == 1) return(1)
+  
+  # Compute log of absolute value to avoid overflow
+  log_prod <- 0
+  for (m in 1:(j - 1)) {
+    log_prod <- log_prod + log(2*m + 1) - log(2*m - 1) + log(k - m) - log(k + m)
   }
+  
+  # Apply sign and exponentiate
+  sign <- (-1)^(j - 1)
+  sign * exp(log_prod)
+}
+    
+  #    r_func <- function(k, j) {
+  #   if (j == 1) return(1)
+  #   prod <- 1
+  #   for (m in 1:(j - 1)) {
+  #     prod <- prod * ((2*m + 1)/(2*m - 1)) * ((k - m)/(k + m))
+  #   }
+  #   (-1)^(j - 1) * prod
+  # }
+    
   ntip<-sum(n_sampled)
-  r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
+  r_ntip <- sapply(seq_len(ntip), function(i) r_func_stable(ntip, i))
+  
+#  r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
   com_vec <- choose(seq_len(ntip), 2)
     grid_bds = range(c(coal_times,bound + 1e-4,samp_times))
   }
