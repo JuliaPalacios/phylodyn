@@ -247,6 +247,19 @@ bound_prob0<-function(fgrid,deltagrid,n){
   return(list(totprob=totprob,totgradient=totgradient/totprob))
 }
 
+##stable version for computing r-coefficients
+r_values <- function(ntip) {
+  j <- seq_len(ntip)
+
+  log_num <- lgamma(ntip + 1) - lgamma(ntip - j + 1)
+  log_den <- lgamma(ntip + j) - lgamma(ntip)
+
+  log_abs_r <- log(2 * j - 1) + log_num - log_den
+  sign_r <- ifelse(j %% 2 == 1, 1, -1)
+
+  sign_r * exp(log_abs_r)
+}
+
 
 ##used for ESS
 coal_loglik_bounded = function(init, f)
@@ -258,16 +271,18 @@ coal_loglik_bounded = function(init, f)
   
   ntip <- sum(init$ns)
   if (!"r_ntip" %in% names(init)){
-  r_func <- function(k, j) {
-    if (j == 1) return(1)
-    prod <- 1
-    for (m in 1:(j - 1)) {
-      prod <- prod * ((2*m + 1)/(2*m - 1)) * ((k - m)/(k + m))
-    }
-    (-1)^(j - 1) * prod
-  }
+  #r_func <- function(k, j) {
+  #  if (j == 1) return(1)
+  #  prod <- 1
+  #  for (m in 1:(j - 1)) {
+  #    prod <- prod * ((2*m + 1)/(2*m - 1)) * ((k - m)/(k + m))
+  #  }
+  #  (-1)^(j - 1) * prod
+  #}
+    
   
-  r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
+  #r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
+  r_ntip<-r_values(ntip)
   com_vec <- choose(seq_len(ntip), 2)
   }else{
     r_ntip<-init$r_ntip
@@ -399,18 +414,23 @@ coalsim_bounded <- function(samp_times, n_sampled, traj=constant, bound=1, val_u
   val_upper<-min(10,2*traj_inv(bound))
   
   ##hazard target
-  r_func <- function(k,j) {
-    if(j == 1) return(1)
-    prod <- 1
-    for(m in 1:(j-1)) {
-      prod <- prod * ((2*m + 1)/(2*m - 1)) * ((k - m)/(k + m))
-    }
-    return((-1)^(j-1) * prod)
-  }
+  #r_func <- function(k,j) {
+  #  if(j == 1) return(1)
+  #  prod <- 1
+  #  for(m in 1:(j-1)) {
+  #    prod <- prod * ((2*m + 1)/(2*m - 1)) * ((k - m)/(k + m))
+  #  }
+  #  return((-1)^(j-1) * prod)
+  #}
+  
   ntip<-sum(n_sampled)
-  result_list <- lapply(seq_len(ntip), function(k) {
-    sapply(seq_len(k), function(i) r_func(k, i))
-  })
+  
+  #result_list <- lapply(seq_len(ntip), function(k) {
+  #  sapply(seq_len(k), function(i) r_func(k, i))
+  #})
+
+  result_list <- lapply(seq_len(ntip), r_values)
+    
   com_vec <- choose(1:ntip, 2)
   
   coal_times = NULL
