@@ -501,16 +501,17 @@ bound_coal_loglik <- function(init) {
   # precompute terms that do not depend on par
   ntip <- sum(init$ns)
   
-  r_func <- function(k, j) {
-    if (j == 1) return(1)
-    prod <- 1
-    for (m in 1:(j - 1)) {
-      prod <- prod * ((2*m + 1)/(2*m - 1)) * ((k - m)/(k + m))
-    }
-    (-1)^(j - 1) * prod
-  }
-  
-  r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
+  #r_func <- function(k, j) {
+  #  if (j == 1) return(1)
+  #  prod <- 1
+  #  for (m in 1:(j - 1)) {
+  #    prod <- prod * ((2*m + 1)/(2*m - 1)) * ((k - m)/(k + m))
+  #  }
+  #  (-1)^(j - 1) * prod
+  #}
+
+  r_ntip <- r_values(ntip)
+  #r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
   com_vec <- choose(seq_len(ntip), 2)
   
   fn <- function(par) {
