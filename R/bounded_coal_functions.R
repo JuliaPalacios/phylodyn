@@ -299,7 +299,7 @@ coal_loglik_bounded = function(init, f)
        print(Lambda)
        break
     }
-    
+    bound_prob<-0.03357345
   #if (bound_prob<0){bound_prob<-1e-16}
     print("bound prob")
     print(bound_prob)
