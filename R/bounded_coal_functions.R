@@ -295,8 +295,8 @@ coal_loglik_bounded = function(init, f)
     
     Lambda <- sum(sllnocoal)
     bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
-    if (bound_prob<0.005){
-       bound_prob<-.005
+    if (bound_prob<0.001){
+       bound_prob<-.001
        #print(Lambda)
        #break
     }
