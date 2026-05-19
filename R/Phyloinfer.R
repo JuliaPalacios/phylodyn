@@ -26,8 +26,6 @@ ESS = function(q_cur, l_cur, loglik, cholC, ...)
   t_max <- t
   
   q <- q_cur*cos(t) + nu*sin(t)
-  print("loglik")
-  print(loglik)
   l <- loglik(q, ...)
   print("new l")
   print(l)
