@@ -1722,7 +1722,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   else
   {
     res_MCMC = sampling(data = dataset, para = para, alg = alg, setting = setting,
-                        init = init, bound=bound, printevery = printevery)
+                        init = init, printevery = printevery)
   }
   
   res_MCMC$alg = alg
