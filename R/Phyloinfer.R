@@ -1509,7 +1509,7 @@ mcmc_sampling_times = function(dataset,sufficient,alg, nsamp, nburnin=0, nsubsam
 #'   times \code{coal_times}, sampling times \code{samp_times}, and number 
 #'   sampled per sampling time \code{n_sampled}.
 #' @param alg string selecting which MCMC sampler to use. Options are "HMC", 
-#'   "splitHMC", "MALA", "aMALA", and "ESS".
+#'   "splitHMC", "MALA", "aMALA", "bound_ESS", "bound_HMC" and "ESS".
 #' @param nsamp integer number of MCMC steps to compute.
 #' @param nburnin integer number of MCMC steps to discard as burn-in.
 #' @param nsubsamp integer after burn-in, how often to record a step to the 
@@ -1636,7 +1636,6 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   if (nugget == "1,1")
     invC[1,1] <- invC[1,1]+.0001 # nugget at (1,1)
   else if (nugget == "diag")
-  #Julia: I had a warning when using this--needs to be corrected
     diag(invC)<-diag(invC)+.0001 # nugget for the whole diagonal
   else if (nugget == "none")
     warning("No nugget may result in a non-full-rank matrix.")
@@ -1654,7 +1653,14 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   #theta = rep(1,Ngrid)
   theta = c(f_init, kappa)
   
-  if (alg == "HMC")
+  if (alg == "bound_HMC")
+  {
+    lik_init$com_vec<-com_vec
+    lik_init$r_ntip<-r_ntip
+    u  = U(theta,lik_init,invC,prec_alpha,prec_beta,bound)$logpos
+    du = U(theta,lik_init,invC,prec_alpha,prec_beta, TRUE,bound)$dlogpos
+  }
+  else if (alg == "HMC")
   {
     u  = U(theta,lik_init,invC,prec_alpha,prec_beta)$logpos
     du = U(theta,lik_init,invC,prec_alpha,prec_beta, TRUE)$dlogpos
@@ -1711,7 +1717,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   else
   {
     res_MCMC = sampling(data = dataset, para = para, alg = alg, setting = setting,
-                        init = init, printevery = printevery)
+                        init = init, bound=bound, printevery = printevery)
   }
   
   res_MCMC$alg = alg
