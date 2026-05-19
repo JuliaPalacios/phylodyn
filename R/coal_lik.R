@@ -196,6 +196,27 @@ coal_samp_fns_loglik = function(init, f, fs, beta0, beta1, betas)
   return(llcoal + llsamp)
 }
 
+U_bound = function(theta, init, invC, alpha, beta, grad=FALSE)
+{
+  D = length(theta)
+  f = theta[-D]
+  tau = theta[D]
+  invCf = invC %*% f
+  if(!grad)
+  {
+    loglik = coal_loglik_bounded(init, f)
+    logpri = ((D-1)/2+alpha)*tau - (t(f)%*%invCf/2+beta)*exp(tau)
+    return(list(loglik = -loglik, logpri = -logpri, logpos = -(loglik+logpri)))
+  }
+  else
+  {
+    dloglik = c(coal_loglik_bounded(init, f, grad),0)
+    dlogpri = c(-invCf*exp(tau),((D-1)/2+alpha)-(t(f)%*%invCf/2+beta)*exp(tau))
+    return(list(dloglik = -dloglik, dlogpri = -dlogpri, dlogpos = -(dloglik+dlogpri)))
+  }
+}
+
+                
 U = function(theta, init, invC, alpha, beta, grad=FALSE)
 {
   D = length(theta)
