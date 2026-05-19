@@ -1662,8 +1662,8 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   {
     lik_init$com_vec<-com_vec
     lik_init$r_ntip<-r_ntip
-    u  = U(theta,lik_init,invC,prec_alpha,prec_beta,bound)$logpos
-    du = U(theta,lik_init,invC,prec_alpha,prec_beta, TRUE,bound)$dlogpos
+    u  = U_bound(theta,lik_init,invC,prec_alpha,prec_beta)$logpos
+    du = U_bound(theta,lik_init,invC,prec_alpha,prec_beta, TRUE)$dlogpos
   }
   else if (alg == "HMC")
   {
