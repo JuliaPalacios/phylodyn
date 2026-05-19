@@ -261,7 +261,7 @@ r_values <- function(ntip) {
 }
 
 
-##used for ESS
+##used for ESS and HMC
 coal_loglik_bounded = function(init, f)
 {
   if (init$ng != length(f))
@@ -296,7 +296,7 @@ coal_loglik_bounded = function(init, f)
     Lambda <- sum(sllnocoal)
     bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
     if (bound_prob<0.0001){
-       bound_prob<-.0001
+    #   bound_prob<-.0001
        print(bound_prob)
        #break
     }
