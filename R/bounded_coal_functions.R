@@ -295,15 +295,15 @@ coal_loglik_bounded = function(init, f)
     
     Lambda <- sum(sllnocoal)
     bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
-    if (bound_prob<0.001){
-       bound_prob<-.001
-       #print(Lambda)
+    if (bound_prob<0.0001){
+       bound_prob<-.0001
+       print(bound_prob)
        #break
     }
   # bound_prob<-0.03357345
   #if (bound_prob<0){bound_prob<-1e-16}
-    print("bound prob")
-    print(bound_prob)
+    #print("bound prob")
+    #print(bound_prob)
     ll_vec <- -init$y * f - llnocoal 
     ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
     
