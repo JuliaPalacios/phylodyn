@@ -912,7 +912,7 @@ sampling2 = function(data, para, alg, setting, init, verbose=TRUE, printevery=10
   return(result)
 }
 
-sampling = function(data, para, alg, setting, init, verbose=TRUE, printevery=100)
+sampling = function(data, para, alg, setting, init, verbose=TRUE, bound=0, printevery=100)
 {
   # pass the data and parameters
   lik_init = data$lik_init # f_offset = data$f_offset
@@ -930,7 +930,7 @@ sampling = function(data, para, alg, setting, init, verbose=TRUE, printevery=100
   if (alg=='aMALA')
     szkappa = setting$szkappa
   
-  if (alg=="HMC" | alg == "splitHMC")
+  if (alg=="HMC" | alg == "splitHMC" | alg=="bound_HMC")
   {
     rand_leap = setting$rand_leap
   }
@@ -966,10 +966,10 @@ sampling = function(data, para, alg, setting, init, verbose=TRUE, printevery=100
   #   betas_out = NULL
   # }
   
-  if (alg == "HMC")
+   if (alg == "HMC" || alg == "bound_HMC")
   {
     Ufun = function(theta, grad=FALSE) U(theta = theta, init = lik_init, invC = invC,
-                                         alpha = alpha, beta = beta, grad = grad)
+                                         alpha = alpha, beta = beta, grad = grad,bound=bound)
     colnames(samp) = c(paste("f", 1:(Ngrid-1), sep = ""), "tau")
   }
   else if (alg == "splitHMC")
@@ -997,7 +997,7 @@ sampling = function(data, para, alg, setting, init, verbose=TRUE, printevery=100
   cat('Running ', alg ,' sampling...\n')
   for(iter in 1:NSAMP)
   {
-    if (alg == "HMC")
+    if (alg == "HMC" || alg=="bound_HMC")
     {
       #Ufun = function(theta, grad=FALSE) U(theta = theta, init = lik_init, invC = invC,
       #                                     alpha = alpha, beta = beta, grad = grad)
