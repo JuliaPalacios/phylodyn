@@ -1569,13 +1569,13 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   
   # Jump tuning parameters--should probably have an option to change in the arguments
   if (is.null(TrjL))
-    TrjL = switch(alg, HMC=3, splitHMC=3, MALA=0.1, aMALA=0.1)
+    TrjL = switch(alg, HMC=3, bound_HMC=3, splitHMC=3, MALA=0.1, aMALA=0.1)
   if (is.null(Nleap))
-    Nleap = switch(alg, HMC=30, splitHMC=15, MALA=1, aMALA=1)
+    Nleap = switch(alg, HMC=30, bound_HMC=30, splitHMC=15, MALA=1, aMALA=1)
   if (is.null(szkappa) & alg=="aMALA")
     szkappa = 1.2
   
-  if (is.null(rand_leap) & (alg=="HMC" | alg=="splitHMC"))
+  if (is.null(rand_leap) & (alg=="HMC" | alg=="splitHMC" | alg=="bound_HMC"))
     rand_leap = TRUE
   
   stepsz = TrjL/Nleap
