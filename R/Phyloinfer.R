@@ -912,7 +912,7 @@ sampling2 = function(data, para, alg, setting, init, verbose=TRUE, printevery=10
   return(result)
 }
 
-sampling = function(data, para, alg, setting, init, verbose=TRUE, bound=0, printevery=100)
+sampling = function(data, para, alg, setting, init, verbose=TRUE, printevery=100)
 {
   # pass the data and parameters
   lik_init = data$lik_init # f_offset = data$f_offset
@@ -965,11 +965,16 @@ sampling = function(data, para, alg, setting, init, verbose=TRUE, bound=0, print
   #   betas = init$betas
   #   betas_out = NULL
   # }
-  
-   if (alg == "HMC" || alg == "bound_HMC")
+  if (alg == "bound_HMC")
+  {
+     Ufun = function(theta, grad=FALSE) U_bound(theta = theta, init = lik_init, invC = invC,
+                                         alpha = alpha, beta = beta, grad = grad)
+    colnames(samp) = c(paste("f", 1:(Ngrid-1), sep = ""), "tau")
+    }
+  else if (alg == "HMC")
   {
     Ufun = function(theta, grad=FALSE) U(theta = theta, init = lik_init, invC = invC,
-                                         alpha = alpha, beta = beta, grad = grad,bound=bound)
+                                         alpha = alpha, beta = beta, grad = grad)
     colnames(samp) = c(paste("f", 1:(Ngrid-1), sep = ""), "tau")
   }
   else if (alg == "splitHMC")
@@ -1032,7 +1037,7 @@ sampling = function(data, para, alg, setting, init, verbose=TRUE, bound=0, print
     theta[1:Ngrid] <- res$q
 
     u <- res$u
-    if (alg %in% c('HMC','splitHMC','MALA'))
+    if (alg %in% c('HMC','splitHMC','MALA','bound_HMC'))
       du <- res$du
     
     # save posterior samples after burnin
