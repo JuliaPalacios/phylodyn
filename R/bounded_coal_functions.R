@@ -350,11 +350,11 @@ coal_loglik_bounded = function(init, f)
     sllnocoal <- init$D * f
     const<-init$D*init$C #this can be computed once, improve later            
     Lambda <- sum(sllnocoal)
-    if (Lambda<.001){Lambda<-.1}
+    if (Lambda<.1){Lambda<-.2}
     print("Lambda")
     print(Lambda)
     bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
-    print(bound_prob)
+    print("bound_prob")
     print(bound_prob)
     if (bound_prob<0.0001){
     #   bound_prob<-.0001
