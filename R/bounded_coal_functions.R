@@ -262,6 +262,63 @@ r_values <- function(ntip) {
 
 
 ##used for ESS and HMC
+# coal_loglik_bounded = function(init, f)
+# {
+#   if (init$ng != length(f))
+#     stop(paste("Incorrect length for f; should be", init$ng))
+#   fext =f
+#   f = rep(f, init$gridrep)
+#   
+#   ntip <- sum(init$ns)
+#   if (!"r_ntip" %in% names(init)){
+#     #r_func <- function(k, j) {
+#     #  if (j == 1) return(1)
+#     #  prod <- 1
+#     #  for (m in 1:(j - 1)) {
+#     #    prod <- prod * ((2*m + 1)/(2*m - 1)) * ((k - m)/(k + m))
+#     #  }
+#     #  (-1)^(j - 1) * prod
+#     #}
+#     
+#     
+#     #r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
+#     r_ntip<-r_values(ntip)
+#     com_vec <- choose(seq_len(ntip), 2)
+#   }else{
+#     r_ntip<-init$r_ntip
+#     com_vec<-init$com_vec
+#   }
+#   
+#   llnocoal  <- init$D * init$C * exp(-f)
+#   sllnocoal <- init$D * exp(-f)
+#   
+#   
+#   Lambda <- sum(sllnocoal)
+#   bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
+#   if (bound_prob<0.0001){
+#     #   bound_prob<-.0001
+#     print(bound_prob)
+#     #break
+#   }
+#   # bound_prob<-0.03357345
+#   #if (bound_prob<0){bound_prob<-1e-16}
+#   #print("bound prob")
+#   #print(bound_prob)
+#   ll_vec <- -init$y * f - llnocoal 
+#   ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
+#   
+#   grad_bound <- sum(r_ntip * com_vec * exp(-com_vec * Lambda))
+#   
+#   dll <- apply(init$rep_idx, 1, function(idx) {
+#     sum(-init$y[idx[1]:idx[2]] + llnocoal[idx[1]:idx[2]])
+#   }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
+#     sum(sllnocoal[idx[1]:idx[2]])
+#   })
+#   return(list(ll=ll,dll=dll))
+# }
+
+##used for ESS and HMC
+##when putting a Gaussian process prior on 1/Ne
 coal_loglik_bounded = function(init, f)
 {
   if (init$ng != length(f))
@@ -289,9 +346,9 @@ coal_loglik_bounded = function(init, f)
     com_vec<-init$com_vec
     }
     
-    llnocoal  <- init$D * init$C * exp(-f)
-    sllnocoal <- init$D * exp(-f)
-                
+    llnocoal  <- init$D * init$C * f
+    sllnocoal <- init$D * f
+    const<-init$D*init$C #this can be computed once, improve later            
     
     Lambda <- sum(sllnocoal)
     bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
@@ -304,19 +361,18 @@ coal_loglik_bounded = function(init, f)
   #if (bound_prob<0){bound_prob<-1e-16}
     #print("bound prob")
     #print(bound_prob)
-    ll_vec <- -init$y * f - llnocoal 
+    ll_vec <- init$y * log(f) - llnocoal 
     ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
     
-    grad_bound <- sum(r_ntip * com_vec * exp(-com_vec * Lambda))
+    grad_bound <- -sum(r_ntip * com_vec * exp(-com_vec * Lambda))
     
     dll <- apply(init$rep_idx, 1, function(idx) {
-      sum(-init$y[idx[1]:idx[2]] + llnocoal[idx[1]:idx[2]])
+      sum((init$y/f)[idx[1]:idx[2]] + const[idx[1]:idx[2]])
     }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
-      sum(sllnocoal[idx[1]:idx[2]])
+      sum(D[idx[1]:idx[2]])
     })
     return(list(ll=ll,dll=dll))
 }
-                   
 # 
 # coal_loglik_bounded = function(init, f, bound)
 # {
