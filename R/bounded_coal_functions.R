@@ -369,7 +369,7 @@ coal_loglik_bounded = function(init, f)
     dll <- apply(init$rep_idx, 1, function(idx) {
       sum((init$y/f)[idx[1]:idx[2]] + const[idx[1]:idx[2]])
     }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
-      sum(inti$D[idx[1]:idx[2]])
+      sum(init$D[idx[1]:idx[2]])
     })
     return(list(ll=ll,dll=dll))
 }
