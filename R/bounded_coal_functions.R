@@ -347,8 +347,11 @@ coal_loglik_bounded = function(init, f)
     }
     
     llnocoal  <- init$D * init$C * f
+    llnocoal[f<0]<-0
     sllnocoal <- init$D * f
-    const<-init$D*init$C #this can be computed once, improve later            
+    sllnocoal[f<0]<-0
+    const<-init$D*init$C #this can be computed once, improve later  
+    const[f<-0]<-0
     Lambda <- sum(sllnocoal)
     if (Lambda<.1){Lambda<-.2}
     print("Lambda")
@@ -365,7 +368,9 @@ coal_loglik_bounded = function(init, f)
   #if (bound_prob<0){bound_prob<-1e-16}
     #print("bound prob")
     #print(bound_prob)
-    ll_vec <- init$y * log(f) - llnocoal 
+    logf<-log(f)
+    logf[f<0]<-0
+    ll_vec <- init$y * logf - llnocoal 
     ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
     
     grad_bound <- -sum(r_ntip * com_vec * exp(-com_vec * Lambda))
