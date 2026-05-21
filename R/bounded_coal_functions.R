@@ -319,69 +319,159 @@ r_values <- function(ntip) {
 
 ##used for ESS and HMC
 ##when putting a Gaussian process prior on 1/Ne
-coal_loglik_bounded = function(init, f)
-{
+coal_loglik_bounded <- function(init, f) {
   if (init$ng != length(f))
-    stop(paste("Incorrect length for f; should be", init$ng))
-  fext =f
-  f = rep(f, init$gridrep)
-  
+    stop(sprintf("Incorrect length for f; should be %d", init$ng))
+
+  ## Expand to replicated grid like your original
+  fext <- f
+  f <- rep(f, init$gridrep)
+
   ntip <- sum(init$ns)
-  if (!"r_ntip" %in% names(init)){
-  #r_func <- function(k, j) {
-  #  if (j == 1) return(1)
-  #  prod <- 1
-  #  for (m in 1:(j - 1)) {
-  #    prod <- prod * ((2*m + 1)/(2*m - 1)) * ((k - m)/(k + m))
-  #  }
-  #  (-1)^(j - 1) * prod
-  #}
-    
-  
-  #r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
-  r_ntip<-r_values(ntip)
-  com_vec <- choose(seq_len(ntip), 2)
-  }else{
-    r_ntip<-init$r_ntip
-    com_vec<-init$com_vec
-    }
-    
-    llnocoal  <- init$D * init$C * f
-    llnocoal[f<0]<-0
-    sllnocoal <- init$D * f
-    sllnocoal[f<0]<-0
-    const<-init$D*init$C #this can be computed once, improve later  
-    const[f<-0]<-0
-    Lambda <- sum(sllnocoal)
-    if (Lambda<.1){Lambda<-.2}
-    print("Lambda")
-    print(Lambda)
-    bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
-    print("bound_prob")
-    print(bound_prob)
-    if (bound_prob<0.0001){
-    #   bound_prob<-.0001
-       print(bound_prob)
-       #break
-    }
-  # bound_prob<-0.03357345
-  #if (bound_prob<0){bound_prob<-1e-16}
-    #print("bound prob")
-    #print(bound_prob)
-    logf<-log(f)
-    logf[f<0]<-0
-    ll_vec <- init$y * logf - llnocoal 
-    ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
-    
-    grad_bound <- -sum(r_ntip * com_vec * exp(-com_vec * Lambda))
-    
-    dll <- apply(init$rep_idx, 1, function(idx) {
-      sum((init$y/f)[idx[1]:idx[2]] + const[idx[1]:idx[2]])
-    }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
-      sum(init$D[idx[1]:idx[2]])
-    })
-    return(list(ll=ll,dll=dll))
+
+  if (!("r_ntip" %in% names(init))) {
+    r_ntip <- r_values(ntip)
+    com_vec <- choose(seq_len(ntip), 2)
+  } else {
+    r_ntip <- init$r_ntip
+    com_vec <- init$com_vec
+  }
+
+  ## ----------------------------
+  ## Python-like DOMAIN CHECK:
+  ## You actually take log(f) on the full expanded f, so require f > 0 everywhere.
+  ## (If you truly only want to check a slice, tell me which indices correspond.)
+  ## ----------------------------
+  if (any(!is.finite(f)) || any(f <= 0)) {
+    return(list(ll = -Inf, dll = rep(NA_real_, nrow(init$rep_idx))))
+  }
+
+  ## Helpful constants
+  const <- init$D * init$C        # same length as expanded grid
+  Dvec  <- init$D
+
+  ## Your original "no coal" parts
+  llnocoal  <- const * f
+  sllnocoal <- Dvec * f
+
+  ## Lambda = sum(D * f)  (your code’s Lambda)
+  Lambda <- sum(sllnocoal)
+
+  ## ----------------------------
+  ## STABLE bound term like Python:
+  ## denom = 1 + sum_j r_j * exp(-com_j * Lambda)
+  ## computed with max-shift and log1p-style branching
+  ## ----------------------------
+  s <- -com_vec * Lambda                 # vector
+  m <- max(s)                            # scalar
+  sum_r_exp <- sum(r_ntip * exp(s - m))  # scaled sum
+
+  y <- exp(m) * sum_r_exp                # = sum_j r_j * exp(s_j)
+  denom <- 1 + y                         # this matches the Python structure
+
+  if (!is.finite(denom) || denom <= 0) {
+    return(list(ll = -Inf, dll = rep(NA_real_, nrow(init$rep_idx))))
+  }
+
+  ## term1: sum y_i * log f_i
+  term1 <- sum(init$y * log(f))
+
+  ## term2: - sum( D*C*f )
+  term2 <- -sum(llnocoal)
+
+  ## term3: -log(1 + y)
+  ## use stable log(1+y) evaluation
+  term3 <- if (abs(y) < 1e-8) -log1p(y) else -log(denom)
+
+  ll <- term1 + term2 + term3
+
+  ## ----------------------------
+  ## Gradient: matches your structure
+  ## bound part: d/dLambda denom = sum_j r_j * (-com_j) * exp(-com_j * Lambda)
+  ## so d/dLambda log(denom) = denom'/denom
+  ## and contribution to ll is -log(denom), so multiply by -(denom'/denom)
+  ## ----------------------------
+  d_dLambda_denom <- sum(r_ntip * (-com_vec) * exp(-com_vec * Lambda))
+  # d/dLambda of term3 = -(denom'/denom)
+  dterm3_dLambda <- -(d_dLambda_denom / denom)
+
+  ## collapse gradient to the unreplicated f bins using rep_idx (as you do)
+  dll <- apply(init$rep_idx, 1, function(idx) {
+    i1 <- idx[1]; i2 <- idx[2]
+    # derivative of term1+term2 w.r.t f: y/f - D*C
+    base <- sum((init$y / f)[i1:i2] - const[i1:i2])
+    # Lambda depends on f via sum(D*f), so dLambda/df = D
+    base + dterm3_dLambda * sum(Dvec[i1:i2])
+  })
+
+  list(ll = ll, dll = dll)
 }
+
+##My version for random integral that is not working 
+# coal_loglik_bounded = function(init, f)
+# {
+#   if (init$ng != length(f))
+#     stop(paste("Incorrect length for f; should be", init$ng))
+#   fext =f
+#   f = rep(f, init$gridrep)
+#   
+#   ntip <- sum(init$ns)
+#   if (!"r_ntip" %in% names(init)){
+#     #r_func <- function(k, j) {
+#     #  if (j == 1) return(1)
+#     #  prod <- 1
+#     #  for (m in 1:(j - 1)) {
+#     #    prod <- prod * ((2*m + 1)/(2*m - 1)) * ((k - m)/(k + m))
+#     #  }
+#     #  (-1)^(j - 1) * prod
+#     #}
+#     
+#     
+#     #r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
+#     r_ntip<-r_values(ntip)
+#     com_vec <- choose(seq_len(ntip), 2)
+#   }else{
+#     r_ntip<-init$r_ntip
+#     com_vec<-init$com_vec
+#   }
+#   
+#   llnocoal  <- init$D * init$C * f
+#   llnocoal[f<0]<-0
+#   sllnocoal <- init$D * f
+#   sllnocoal[f<0]<-0
+#   const<-init$D*init$C #this can be computed once, improve later  
+#   const[f<-0]<-0
+#   Lambda <- sum(sllnocoal)
+#   if (Lambda<.1){Lambda<-.2}
+#   print("Lambda")
+#   print(Lambda)
+#   bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
+#   print("bound_prob")
+#   print(bound_prob)
+#   if (bound_prob<0.0001){
+#     #   bound_prob<-.0001
+#     print(bound_prob)
+#     #break
+#   }
+#   # bound_prob<-0.03357345
+#   #if (bound_prob<0){bound_prob<-1e-16}
+#   #print("bound prob")
+#   #print(bound_prob)
+#   logf<-log(f)
+#   logf[f<0]<-0
+#   ll_vec <- init$y * logf - llnocoal 
+#   ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
+#   
+#   grad_bound <- -sum(r_ntip * com_vec * exp(-com_vec * Lambda))
+#   
+#   dll <- apply(init$rep_idx, 1, function(idx) {
+#     sum((init$y/f)[idx[1]:idx[2]] + const[idx[1]:idx[2]])
+#   }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
+#     sum(init$D[idx[1]:idx[2]])
+#   })
+#   return(list(ll=ll,dll=dll))
+# }
+
 # 
 # coal_loglik_bounded = function(init, f, bound)
 # {
