@@ -110,6 +110,7 @@ bound_prob_base<-function(fgrid,deltagrid,n){
 }
 
 
+
 bound_prob0<-function(fgrid,deltagrid,n){
   ngrid<-length(deltagrid)
   lineages<-seq(n,2)
@@ -247,6 +248,59 @@ bound_prob0<-function(fgrid,deltagrid,n){
   return(list(totprob=totprob,totgradient=totgradient/totprob))
 }
 
+a_coeffs_kmax <- function(kmax) {
+  if (kmax == 1 || kmax == 2) {
+    return(c(1))
+  }
+  
+  a_prev <- c(1)  # k = 2
+  
+  for (k in 3:kmax) {
+    Mk <- choose(k - 1, 2)
+    Mk_prev <- choose(k - 2, 2)
+    
+    a_cur <- numeric(Mk + 1)
+    
+    for (i in 0:Mk) {
+      # R index is i + 1
+      
+      if (i == 0) {
+        a_cur[i + 1] <- 1
+        next
+      }
+      
+      a_im1_k <- a_cur[i]  # a_{i-1,k}
+      
+      if (i <= Mk_prev) {
+        a_i_km1 <- a_prev[i + 1]  # a_{i,k-1}
+      } else {
+        a_i_km1 <- 0
+      }
+      
+      numerator <- 
+        (choose(k - 1, 2) - i + 1) * a_im1_k +
+        choose(k, 2) * a_i_km1
+      
+      denominator <- choose(k, 2) - i
+      
+      a_cur[i + 1] <- numerator / denominator
+    }
+    
+    a_prev <- a_cur
+  }
+  
+  return(a_prev)
+}
+a <- a_coeffs_kmax(ntip)
+
+rhs_value <- function(x) {
+  poly <- 0
+  for (i in length(a):1) {
+    poly <- poly * x + a[i]
+  }
+  return(poly)
+}
+
 ##stable version for computing r-coefficients
 r_values <- function(ntip) {
   j <- seq_len(ntip)
@@ -260,6 +314,42 @@ r_values <- function(ntip) {
   sign_r * exp(log_abs_r)
 }
 
+##used for ESS and HMC, uses a_k coefficients
+coal_loglik_bounded = function(init, f)
+{
+  if (init$ng != length(f))
+    stop(paste("Incorrect length for f; should be", init$ng))
+  fext =f
+  f = rep(f, init$gridrep)
+
+  ntip <- sum(init$ns)
+  if (!"r_ntip" %in% names(init)){
+    r_ntip<-r_values(ntip)
+    com_vec <- choose(seq_len(ntip), 2)
+  }else{
+    r_ntip<-init$r_ntip
+    com_vec<-init$com_vec
+  }
+
+  llnocoal  <- init$D * init$C * exp(-f)
+  sllnocoal <- init$D * exp(-f)
+
+
+  Lambda <- sum(sllnocoal)
+  bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
+  
+  ll_vec <- -init$y * f - llnocoal
+  ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
+
+  grad_bound <- sum(r_ntip * com_vec * exp(-com_vec * Lambda))
+
+  dll <- apply(init$rep_idx, 1, function(idx) {
+    sum(-init$y[idx[1]:idx[2]] + llnocoal[idx[1]:idx[2]])
+  }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
+    sum(sllnocoal[idx[1]:idx[2]])
+  })
+  return(list(ll=ll,dll=dll))
+}
 
 ##used for ESS and HMC, uses r_k coefficients
 coal_loglik_bounded = function(init, f)
