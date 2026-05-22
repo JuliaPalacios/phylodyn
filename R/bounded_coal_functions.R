@@ -261,7 +261,7 @@ r_values <- function(ntip) {
 }
 
 
-##used for ESS and HMC
+##used for ESS and HMC, uses r_k coefficients
 coal_loglik_bounded = function(init, f)
 {
   if (init$ng != length(f))
@@ -271,17 +271,6 @@ coal_loglik_bounded = function(init, f)
 
   ntip <- sum(init$ns)
   if (!"r_ntip" %in% names(init)){
-    #r_func <- function(k, j) {
-    #  if (j == 1) return(1)
-    #  prod <- 1
-    #  for (m in 1:(j - 1)) {
-    #    prod <- prod * ((2*m + 1)/(2*m - 1)) * ((k - m)/(k + m))
-    #  }
-    #  (-1)^(j - 1) * prod
-    #}
-
-
-    #r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
     r_ntip<-r_values(ntip)
     com_vec <- choose(seq_len(ntip), 2)
   }else{
@@ -295,15 +284,7 @@ coal_loglik_bounded = function(init, f)
 
   Lambda <- sum(sllnocoal)
   bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
-  if (bound_prob<0.0001){
-    #   bound_prob<-.0001
-    print(bound_prob)
-    #break
-  }
-  # bound_prob<-0.03357345
-  #if (bound_prob<0){bound_prob<-1e-16}
-  #print("bound prob")
-  #print(bound_prob)
+  
   ll_vec <- -init$y * f - llnocoal
   ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
 
