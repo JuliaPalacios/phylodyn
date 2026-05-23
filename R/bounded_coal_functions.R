@@ -369,42 +369,41 @@ coal_loglik_bounded = function(init, f)
 }
 
 ##used for ESS and HMC, uses r_k coefficients
-coal_loglik_bounded = function(init, f)
-{
-  if (init$ng != length(f))
-    stop(paste("Incorrect length for f; should be", init$ng))
-  fext =f
-  f = rep(f, init$gridrep)
-
-  ntip <- sum(init$ns)
-  if (!"r_ntip" %in% names(init)){
-    r_ntip<-r_values(ntip)
-    com_vec <- choose(seq_len(ntip), 2)
-  }else{
-    r_ntip<-init$r_ntip
-    com_vec<-init$com_vec
-  }
-
-  llnocoal  <- init$D * init$C * exp(-f)
-  sllnocoal <- init$D * exp(-f)
-
-
-  Lambda <- sum(sllnocoal)
-  bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
-  
-  ll_vec <- -init$y * f - llnocoal
-  ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
-
-  grad_bound <- sum(r_ntip * com_vec * exp(-com_vec * Lambda))
-
-  dll <- apply(init$rep_idx, 1, function(idx) {
-    sum(-init$y[idx[1]:idx[2]] + llnocoal[idx[1]:idx[2]])
-  }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
-    sum(sllnocoal[idx[1]:idx[2]])
-  })
-  return(list(ll=ll,dll=dll))
-}
-
+# coal_loglik_bounded = function(init, f)
+# {
+#   if (init$ng != length(f))
+#     stop(paste("Incorrect length for f; should be", init$ng))
+#   fext =f
+#   f = rep(f, init$gridrep)
+#   
+#   ntip <- sum(init$ns)
+#   if (!"r_ntip" %in% names(init)){
+#     r_ntip<-r_values(ntip)
+#     com_vec <- choose(seq_len(ntip), 2)
+#   }else{
+#     r_ntip<-init$r_ntip
+#     com_vec<-init$com_vec
+#   }
+#   
+#   llnocoal  <- init$D * init$C * exp(-f)
+#   sllnocoal <- init$D * exp(-f)
+#   
+#   
+#   Lambda <- sum(sllnocoal)
+#   bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
+#   
+#   ll_vec <- -init$y * f - llnocoal
+#   ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
+#   
+#   grad_bound <- sum(r_ntip * com_vec * exp(-com_vec * Lambda))
+#   
+#   dll <- apply(init$rep_idx, 1, function(idx) {
+#     sum(-init$y[idx[1]:idx[2]] + llnocoal[idx[1]:idx[2]])
+#   }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
+#     sum(sllnocoal[idx[1]:idx[2]])
+#   })
+#   return(list(ll=ll,dll=dll))
+# }
 
 
 ##My version for random integral that is not working 
