@@ -294,16 +294,17 @@ a_coeffs_kmax <- function(kmax) {
 
 
   
-rhs_value <- function(x,a) {
-  poly <- 0
-  poly2<-a[length(a)]*length(a)
-  for (i in length(a):1) {
-    poly <- poly * x + a[i]
-    while (i> 1){
-    poly2<-poly2*x+a[i-1]*(i-1)
-      }
+rhs_value <- function(x, a) {
+  n <- length(a)
+  p  <- a[n]
+  dp <- 0
+  if (n > 1) {
+    for (i in (n - 1):1) {
+      dp <- dp * x + p
+      p  <- p  * x + a[i]
+    }
   }
-  return(poly=poly,poly2=poly2)
+  list(poly = p, poly2 = dp)
 }
 
 
