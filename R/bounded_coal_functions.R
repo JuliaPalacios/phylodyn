@@ -291,15 +291,22 @@ a_coeffs_kmax <- function(kmax) {
   
   return(a_prev)
 }
-a <- a_coeffs_kmax(ntip)
 
-rhs_value <- function(x) {
+
+  
+rhs_value <- function(x,a) {
   poly <- 0
+  poly2<-a[length(a)]*length(a)
   for (i in length(a):1) {
     poly <- poly * x + a[i]
+    while (i> 1){
+    poly2<-poly2*x+a[i-1]*(i-1)
+      }
   }
-  return(poly)
+  return(poly=poly,poly2=poly2)
 }
+
+
 
 ##stable version for computing r-coefficients
 r_values <- function(ntip) {
@@ -323,10 +330,12 @@ coal_loglik_bounded = function(init, f)
   f = rep(f, init$gridrep)
 
   ntip <- sum(init$ns)
-  if (!"r_ntip" %in% names(init)){
+  if (!"a" %in% names(init)){
+    a <- a_coeffs_kmax(ntip)
     r_ntip<-r_values(ntip)
     com_vec <- choose(seq_len(ntip), 2)
   }else{
+    a<-init$a
     r_ntip<-init$r_ntip
     com_vec<-init$com_vec
   }
@@ -336,13 +345,21 @@ coal_loglik_bounded = function(init, f)
 
 
   Lambda <- sum(sllnocoal)
-  bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
   
+  x<-exp(-Lambda)
+  valt=rhs_value(x,a) 
+  val<-valt$poly
+  logboundprob=((ntip-1)*log(1-x)+log(val))
+
+  
+  #bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
+  bound_prob<-exp(logboundprob)
   ll_vec <- -init$y * f - llnocoal
-  ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
+  #ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
+  ll <- sum(ll_vec[!is.nan(ll_vec)])- logboundprob
 
-  grad_bound <- sum(r_ntip * com_vec * exp(-com_vec * Lambda))
-
+  #grad_bound <- sum(r_ntip * com_vec * exp(-com_vec * Lambda))
+  grad_bound<-valt$poly2*(1-x)^(ntip-1)-(ntip-1)*val*(1-x)^(ntip-2)
   dll <- apply(init$rep_idx, 1, function(idx) {
     sum(-init$y[idx[1]:idx[2]] + llnocoal[idx[1]:idx[2]])
   }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
