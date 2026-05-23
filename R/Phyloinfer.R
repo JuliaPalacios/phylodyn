@@ -1583,19 +1583,19 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
     grid_bds = range(c(coal_times,samp_times))
   }else{
     
-  r_func_stable <- function(k, j) {
-  if (j == 1) return(1)
+  # r_func_stable <- function(k, j) {
+  # if (j == 1) return(1)
   
-  # Compute log of absolute value to avoid overflow
-  log_prod <- 0
-  for (m in 1:(j - 1)) {
-    log_prod <- log_prod + log(2*m + 1) - log(2*m - 1) + log(k - m) - log(k + m)
-  }
+  # # Compute log of absolute value to avoid overflow
+  # log_prod <- 0
+  # for (m in 1:(j - 1)) {
+  #   log_prod <- log_prod + log(2*m + 1) - log(2*m - 1) + log(k - m) - log(k + m)
+  # }
   
   # Apply sign and exponentiate
-  sign <- (-1)^(j - 1)
-  sign * exp(log_prod)
-}
+  # sign <- (-1)^(j - 1)
+  # sign * exp(log_prod)
+  # }
     
   #    r_func <- function(k, j) {
   #   if (j == 1) return(1)
@@ -1607,8 +1607,8 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   # }
     
   ntip<-sum(n_sampled)
-  r_ntip <- sapply(seq_len(ntip), function(i) r_func_stable(ntip, i))
-  
+ # r_ntip <- sapply(seq_len(ntip), function(i) r_func_stable(ntip, i))
+   a <- a_coeffs_kmax(ntip)
 #  r_ntip <- sapply(seq_len(ntip), function(i) r_func(ntip, i))
   com_vec <- choose(seq_len(ntip), 2)
     grid_bds = range(c(coal_times,bound + 1e-4,samp_times))
@@ -1659,7 +1659,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   if (alg == "bound_HMC")
   {
     lik_init$com_vec<-com_vec
-    lik_init$r_ntip<-r_ntip
+    lik_init$a<-a
     u  = U_bound(theta,lik_init,invC,prec_alpha,prec_beta)$logpos
     du = U_bound(theta,lik_init,invC,prec_alpha,prec_beta, TRUE)$dlogpos
   }
@@ -1696,7 +1696,7 @@ mcmc_sampling = function(dataset, alg, nsamp, nburnin=0, nsubsamp=1, ngrid=100,
   }
   if (alg=="bound_ESS"){
     lik_init$com_vec<-com_vec
-    lik_init$r_ntip<-r_ntip
+    lik_init$a<-a
     }
   
   # MCMC sampling preparation
