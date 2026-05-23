@@ -332,11 +332,11 @@ coal_loglik_bounded = function(init, f)
   ntip <- sum(init$ns)
   if (!"a" %in% names(init)){
     a <- a_coeffs_kmax(ntip)
-    r_ntip<-r_values(ntip)
+    #r_ntip<-r_values(ntip)
     com_vec <- choose(seq_len(ntip), 2)
   }else{
     a<-init$a
-    r_ntip<-init$r_ntip
+    #r_ntip<-init$r_ntip
     com_vec<-init$com_vec
   }
 
