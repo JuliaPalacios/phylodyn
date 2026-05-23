@@ -370,7 +370,7 @@ coal_loglik_bounded = function(init, f)
 }
 
 ##used for MLE, uses r_k coefficients
-# coal_loglik_bounded_MLE = function(init, f)
+coal_loglik_bounded_MLE = function(init, f)
 {
   if (init$ng != length(f))
     stop(paste("Incorrect length for f; should be", init$ng))
