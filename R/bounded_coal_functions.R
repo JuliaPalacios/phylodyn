@@ -332,13 +332,10 @@ coal_loglik_bounded = function(init, f)
 
   ntip <- sum(init$ns)
   if (!"a" %in% names(init)){
-    print("Computes a")
     a <- a_coeffs_kmax(ntip)
-    #r_ntip<-r_values(ntip)
     com_vec <- choose(seq_len(ntip), 2)
   }else{
     a<-init$a
-    #r_ntip<-init$r_ntip
     com_vec<-init$com_vec
   }
 
@@ -352,10 +349,10 @@ coal_loglik_bounded = function(init, f)
   valt=rhs_value(x,a) 
   val<-valt$poly
   logboundprob=((ntip-1)*log(1-x)+log(val))
-  print("logbound")
-  print(logboundprob)
   #bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
   bound_prob<-exp(logboundprob)
+  print("bound prob")
+  print(bound_prob)
   ll_vec <- -init$y * f - llnocoal
   #ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
   ll <- sum(ll_vec[!is.nan(ll_vec)])- logboundprob
