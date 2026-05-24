@@ -351,6 +351,10 @@ coal_loglik_bounded = function(init, f)
   logboundprob=((ntip-1)*log(1-x)+log(val))
   #bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
   bound_prob<-exp(logboundprob)
+
+  bound_prob<-0.03357345
+  logboundprob<-log(bound_prob)
+  
   print("bound prob")
   print(bound_prob)
   ll_vec <- -init$y * f - llnocoal
