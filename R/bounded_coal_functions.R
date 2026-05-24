@@ -360,8 +360,8 @@ coal_loglik_bounded = function(init, f)
   dlogb_dLambda <- dlogb_dx * (-x)
 
 
-  # gradient of bound_prob (not log) wrt f: db/df = b * dlogb/df
-  grad <- bound_prob * dlogb_dLambda*apply(init$rep_idx, 1, function(idx) {
+  # gradient
+  grad <- dlogb_dLambda*apply(init$rep_idx, 1, function(idx) {
     sum(sllnocoal[idx[1]:idx[2]])})
 
   #bound_prob<-0.03357345
