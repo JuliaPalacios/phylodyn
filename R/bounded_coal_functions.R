@@ -348,12 +348,24 @@ coal_loglik_bounded = function(init, f)
   x<-exp(-Lambda)
   valt=rhs_value(x,a) 
   val<-valt$poly
-  logboundprob=((ntip-1)*log(1-x)+log(val))
+  logboundprob=((ntip-1)*log1p(-x)+log(val))
   #bound_prob <- sum(r_ntip * exp(-com_vec * Lambda))
   bound_prob<-exp(logboundprob)
+  
+  dval_dx <- valt$poly2                 
+    # d/dx log(bound_prob)
+  dlogb_dx <- (ntip - 1) * (-1 / (1 - x)) + (dval_dx / val)
 
-  bound_prob<-0.03357345
-  logboundprob<-log(bound_prob)
+  # chain rule: x = exp(-Lambda) => dx/dLambda = -x
+  dlogb_dLambda <- dlogb_dx * (-x)
+
+
+  # gradient of bound_prob (not log) wrt f: db/df = b * dlogb/df
+  grad <- bound_prob * dlogb_dLambda*apply(init$rep_idx, 1, function(idx) {
+    sum(sllnocoal[idx[1]:idx[2]])})
+
+  #bound_prob<-0.03357345
+  #logboundprob<-log(bound_prob)
   
   print("bound prob")
   print(bound_prob)
@@ -362,12 +374,9 @@ coal_loglik_bounded = function(init, f)
   ll <- sum(ll_vec[!is.nan(ll_vec)])- logboundprob
 
   #grad_bound <- sum(r_ntip * com_vec * exp(-com_vec * Lambda))
-  grad_bound<-valt$poly2*(1-x)^(ntip-1)-(ntip-1)*val*(1-x)^(ntip-2)
+  #grad_bound<-valt$poly2*(1-x)^(ntip-1)-(ntip-1)*val*(1-x)^(ntip-2)
   dll <- apply(init$rep_idx, 1, function(idx) {
-    sum(-init$y[idx[1]:idx[2]] + llnocoal[idx[1]:idx[2]])
-  }) - (grad_bound / bound_prob) * apply(init$rep_idx, 1, function(idx) {
-    sum(sllnocoal[idx[1]:idx[2]])
-  })
+    sum(-init$y[idx[1]:idx[2]] + llnocoal[idx[1]:idx[2]])})+ grad
   return(list(ll=ll,dll=dll))
 }
 
