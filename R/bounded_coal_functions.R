@@ -504,7 +504,7 @@ Ne_gradient_ascent <- function(f_init, lik_init, bound, eps, eta) {
   ll = c()
   while (diff > eps) {
     
-    result = coal_loglik_bounded_MLE(lik_init, currF)
+    result = coal_loglik_bounded(lik_init, currF)
     ll = c(ll, result$ll)
     newF = currF + eta*result$dll
     
