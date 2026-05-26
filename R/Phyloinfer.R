@@ -58,6 +58,8 @@ ESS2 = function(q_cur, l_cur, loglik, kappa, lik_init, ...)
   #nu = crossprod(cholC, stats::rnorm(length(q_cur)))
   print("current loglik")
   print(l_cur)
+  print("length f")
+  print(length(nu))
   # log-likelihood threshold
   u = stats::runif(1)
   logy <- l_cur + log(u)
@@ -68,7 +70,7 @@ ESS2 = function(q_cur, l_cur, loglik, kappa, lik_init, ...)
   t_max <- t
   
   q <- q_cur*cos(t) + nu*sin(t)
-  l <- loglik(q, lik_init = lik_init, ...)
+  l <- loglik(f=q, lik_init = lik_init, ...)
   print("new l")
   print(l)
   while (l < logy)
@@ -86,7 +88,7 @@ ESS2 = function(q_cur, l_cur, loglik, kappa, lik_init, ...)
     t <- stats::runif(1, t_min, t_max)
     q <- q_cur*cos(t) + nu*sin(t)
     
-    l <- loglik(q, lik_init = lik_init, ...)
+    l <- loglik(f=q, lik_init = lik_init, ...)
   }
   
   return(list(q=q, u=l, Ind=1))
