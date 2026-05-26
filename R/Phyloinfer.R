@@ -50,7 +50,7 @@ ESS = function(q_cur, l_cur, loglik, cholC, ...)
   return(list(q=q, u=l, Ind=1))
 }
 
-ESS2 = function(q_cur, l_cur, loglik, kappa, lik_init, ...)
+ESS2 = function(q_cur, l_cur, loglik, kappa, ...)
 {  
   # choose ellipse
   nu=sim_rw1(lik_init$args$grid, signal = 1/kappa, constraint ="anchor", anchor_index = 1) 
