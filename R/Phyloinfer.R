@@ -97,6 +97,24 @@ ESS_old = function(q_cur, l_cur, loglik, cholC)
   }
 }
 
+
+sim_rw1 <- function(grid, signal = 1, constraint = c("sum0","anchor"), anchor_index = 1) {
+  constraint <- match.arg(constraint)
+  dt <- diff(grid)[1]
+  n  <- length(grid)
+  
+  # increments: Var(dx_i) = signal * dt_i
+  dx <- rnorm(n - 1, mean = 0, sd = sqrt(signal * dt))
+  x  <- c(0, cumsum(dx))  # level is arbitrary
+  
+  if (constraint == "sum0") {
+    x <- x - mean(x)      # imposes sum-to-zero (approx; exactly sum-to-zero if weights equal)
+  } else if (constraint == "anchor") {
+    x <- x - x[anchor_index]  # sets x[anchor_index] = 0
+  }
+  x
+}
+
 #### Metropolis-Adjusted Langevin (MALA) Algorithm ####
 # This function generates one sample given previous state.
 
