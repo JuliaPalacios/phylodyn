@@ -1244,7 +1244,7 @@ sampling_ESS = function(data, para, setting, init,
     {
     if (!is.null(bound)){
        res = ESS2(q_cur = f, l_cur = pos_summ$loglik, loglik = ll,
-                kappa, lik_init = lik_init)
+                kappa = kappa, lik_init = lik_init)
       }else{
       
       res = ESS(q_cur = f, l_cur = pos_summ$loglik, loglik = ll,
