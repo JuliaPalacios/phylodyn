@@ -50,6 +50,47 @@ ESS = function(q_cur, l_cur, loglik, cholC, ...)
   return(list(q=q, u=l, Ind=1))
 }
 
+ESS2 = function(q_cur, l_cur, loglik, kappa, ...)
+{  
+  # choose ellipse
+  nu=sim_rw1(lik_init$args$grid, signal = 1/kappa, constraint ="anchor", anchor_index = 1) 
+  
+  #nu = crossprod(cholC, stats::rnorm(length(q_cur)))
+  print("current loglik")
+  print(l_cur)
+  # log-likelihood threshold
+  u = stats::runif(1)
+  logy <- l_cur + log(u)
+  
+  # draw a initial proposal, also defining a bracket
+  t = 2*pi*stats::runif(1)
+  t_min <- t-2*pi
+  t_max <- t
+  
+  q <- q_cur*cos(t) + nu*sin(t)
+  l <- loglik(q, ...)
+  print("new l")
+  print(l)
+  while (l < logy)
+  {
+    # shrink the bracket and try a new point
+    if (t < 0)
+    {
+      t_min <- t
+    }
+    else
+    {
+      t_max <- t
+    }
+    
+    t <- stats::runif(1, t_min, t_max)
+    q <- q_cur*cos(t) + nu*sin(t)
+    
+    l <- loglik(q, ...)
+  }
+  
+  return(list(q=q, u=l, Ind=1))
+}
 ESS_wrapper = function(lik_init, loglik, l_cur, f, kappa, cholC, invC, alpha, beta)
 {
   #ll = function(f) coal_loglik(init = lik_init, f = f)
@@ -1200,11 +1241,14 @@ sampling_ESS = function(data, para, setting, init,
   {
     if (samp_alg == "none")
     {
-      print("this should be called, calling ESS")
-      print("This is in ll")
-      print(ll)
+    if (!is.null(bound){
+       res = ESS2(q_cur = f, l_cur = pos_summ$loglik, loglik = ll,
+                kappa, lik_init = lik_init)
+      }else{
+      
       res = ESS(q_cur = f, l_cur = pos_summ$loglik, loglik = ll,
                 cholC = cholC/sqrt(kappa), lik_init = lik_init)
+      }
       f = res$q
     }
     else if (samp_alg == "fixed")
