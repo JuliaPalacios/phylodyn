@@ -68,7 +68,7 @@ ESS2 = function(q_cur, l_cur, loglik, kappa, lik_init, ...)
   t_max <- t
   
   q <- q_cur*cos(t) + nu*sin(t)
-  l <- loglik(q, ...)
+  l <- loglik(q, lik_init = lik_init, ...)
   print("new l")
   print(l)
   while (l < logy)
@@ -86,7 +86,7 @@ ESS2 = function(q_cur, l_cur, loglik, kappa, lik_init, ...)
     t <- stats::runif(1, t_min, t_max)
     q <- q_cur*cos(t) + nu*sin(t)
     
-    l <- loglik(q, ...)
+    l <- loglik(q, lik_init = lik_init, ...)
   }
   
   return(list(q=q, u=l, Ind=1))
