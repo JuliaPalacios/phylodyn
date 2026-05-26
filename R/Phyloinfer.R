@@ -10,7 +10,7 @@
 #   u: log-likelihood of new state
 #   Ind: proposal acceptance indicator
 
-ESS = function(q_cur, l_cur, loglik, cholC, ...)
+ESS = function(q_cur, l_cur, loglik, cholC, lik_init, ...)
 {  
   # choose ellipse
   nu = crossprod(cholC, stats::rnorm(length(q_cur)))
