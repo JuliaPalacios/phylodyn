@@ -10,7 +10,7 @@
 #   u: log-likelihood of new state
 #   Ind: proposal acceptance indicator
 
-ESS = function(q_cur, l_cur, loglik, cholC, lik_init, ...)
+ESS = function(q_cur, l_cur, loglik, cholC, ...)
 {  
   # choose ellipse
   nu = crossprod(cholC, stats::rnorm(length(q_cur)))
@@ -50,7 +50,7 @@ ESS = function(q_cur, l_cur, loglik, cholC, lik_init, ...)
   return(list(q=q, u=l, Ind=1))
 }
 
-ESS2 = function(q_cur, l_cur, loglik, kappa, ...)
+ESS2 = function(q_cur, l_cur, loglik, kappa, lik_init, ...)
 {  
   # choose ellipse
   nu=sim_rw1(lik_init$args$grid, signal = 1/kappa, constraint ="anchor", anchor_index = 1) 
