@@ -145,7 +145,7 @@ ESS_old = function(q_cur, l_cur, loglik, cholC)
 sim_rw1 <- function(grid, signal = 1, constraint = c("sum0","anchor"), anchor_index = 1) {
   constraint <- match.arg(constraint)
   dt <- diff(grid)[1]
-  n  <- length(grid)
+  n  <- length(grid)-1
   
   # increments: Var(dx_i) = signal * dt_i
   dx <- rnorm(n - 1, mean = 0, sd = sqrt(signal * dt))
