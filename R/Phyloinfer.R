@@ -53,7 +53,7 @@ ESS = function(q_cur, l_cur, loglik, cholC, ...)
 ESS2 = function(q_cur, l_cur, loglik, kappa, lik_init, ...)
 {  
   # choose ellipse
-  nu=sim_rw1(lik_init$args$grid, signal = 1/kappa, constraint ="anchor", anchor_index = 1) 
+  nu=sim_rw1(lik_init$args$grid, signal = 1/kappa, constraint ="none", anchor_index = 1) 
   
   #nu = crossprod(cholC, stats::rnorm(length(q_cur)))
   print("current loglik")
