@@ -156,7 +156,7 @@ sim_rw1 <- function(grid, signal = 1, constraint = c("sum0","anchor","none"), an
   } else if (constraint == "anchor") {
     x <- x - x[anchor_index]  # sets x[anchor_index] = 0
   } else if (constraint == "none"){
-    x<-rnorm(1,mean=0,sd=sqrt(signal))+x
+    x<-rnorm(1,mean=0,sd=sqrt(signal*dt))+x
     }
   x
 }
