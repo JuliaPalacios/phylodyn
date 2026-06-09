@@ -142,7 +142,7 @@ ESS_old = function(q_cur, l_cur, loglik, cholC)
 }
 
 
-sim_rw1 <- function(grid, signal = 1, constraint = c("sum0","anchor"), anchor_index = 1) {
+sim_rw1 <- function(grid, signal = 1, constraint = c("sum0","anchor","none"), anchor_index = 1) {
   constraint <- match.arg(constraint)
   dt <- diff(grid)[1]
   n  <- length(grid)-1
@@ -155,7 +155,9 @@ sim_rw1 <- function(grid, signal = 1, constraint = c("sum0","anchor"), anchor_in
     x <- x - mean(x)      # imposes sum-to-zero (approx; exactly sum-to-zero if weights equal)
   } else if (constraint == "anchor") {
     x <- x - x[anchor_index]  # sets x[anchor_index] = 0
-  }
+  } else if (constraint == "none"){
+    x<-rnorm(1,mean=0,sd=sqrt(signal))+x
+    }
   x
 }
 
