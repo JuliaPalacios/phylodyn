@@ -50,6 +50,7 @@ if (init_method == "upgma") {
   M_est_tree <- mytree_from_F(init_Fmat, coal_times)
 }
 M_est <- round(gen_Fmat(M_est_tree, tol = 8), 0)
+M_init     <- M_est
 M_true     <- round(gen_Fmat(init_results$M_true_tree, tol = 8), 0)
 g_est      <- log(0.01)
 
@@ -148,4 +149,5 @@ M_estimated_tree <- mytree_from_F(nearby_Fmat(M_est), coal_times)
 plot(M_estimated_tree)
 plot(init_results$M_true_tree)
 
-print(paste0("L2 distance to true M: ", distance_Fmat(M_est, M_true, dist = "l2")))
+print(paste0("L2 distance to true M:    ", distance_Fmat(M_est, M_true, dist = "l2")))
+print(paste0("L2 distance to initial M: ", distance_Fmat(M_est, M_init, dist = "l2")))

@@ -360,5 +360,3 @@ update_time <- function(tree, coal_times) {
     new.edge[which(old.edge[,1] == xx$ix[j]), 1] <- index[j - n.sample]
     new.edge[which(old.edge[,2] == xx$ix[j]), 2] <- index[j - n.sample]
   }
-  
-  
