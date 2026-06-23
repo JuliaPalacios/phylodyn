@@ -1,5 +1,5 @@
 #### Data Simulation
-generate_true_M_and_data <- function(num_tips, traj = "exp_traj", rate = 1, seq_len = 1000,
+generate_true_M_and_data <- function(num_tips, traj = exp_traj, rate = 1, seq_len = 1000,
                                      write_files = FALSE,
                                      name_fasta = "sequences.fasta",
                                      name_tree  = "true_tree.newick") {
@@ -326,3 +326,39 @@ sampleF <- function(M, beta, iter, diam, startF = NULL, take_every = 1){
   )
 }
 
+
+
+update_time <- function(tree, coal_times) {
+  # coal_times <- cumsum(coalescent.intervals(tree)$interval.length)
+  # tiplabels(); nodelabels()
+  ## sort before update to avoid problems
+  # xx1 <- sort(n.t, index.return = T)
+  
+  old.edge <- tree$edge
+  n.sample <- tree$Nnode + 1
+  t.tot <- max(ape::node.depth.edgelength(tree))
+  n.t <- t.tot - ape::node.depth.edgelength(tree)  ## gives the node length
+  n.t[1:n.sample] <- 0
+  new.n.t <- n.t
+  
+  # order nodes according to length, then coalescent times are in reverse order
+  xx1 <- sort(new.n.t, index.return = TRUE)
+  index <- (2 * n.sample - 1):(n.sample + 1)
+  
+  for (j in (n.sample + 1):(2 * n.sample - 1)) {
+    old.edge[which(tree$edge[,1] == xx1$ix[j]), 1] <- index[j - n.sample]
+    old.edge[which(tree$edge[,2] == xx1$ix[j]), 2] <- index[j - n.sample]
+  }
+  
+  new.n.t[(n.sample + 1):(2 * n.sample - 1)] <- rev(coal_times)
+  
+  # If we sort them, we can get the correspondence between leaves and coal. times
+  xx <- sort(new.n.t, index.return = TRUE)
+  new.edge <- old.edge
+  
+  for (j in (n.sample + 1):(2 * n.sample - 1)) {
+    new.edge[which(old.edge[,1] == xx$ix[j]), 1] <- index[j - n.sample]
+    new.edge[which(old.edge[,2] == xx$ix[j]), 2] <- index[j - n.sample]
+  }
+  
+  

@@ -33,6 +33,7 @@ num_tip_label_iters <- 30
 take_every          <- 20
 burnin              <- ceiling(round(num_samps * 0.1) / take_every) * take_every
 joint               <- TRUE
+init_method         <- "upgma"  # "caterpillar" or "upgma"
 
 # ---- Generate data + initialize ----
 init_results <- generate_true_M_and_data(num_tips)
@@ -41,9 +42,15 @@ inter_coal_times <- coalescent.intervals(init_results$M_true_tree)$interval.leng
 inter_coal_times[inter_coal_times <= 0.001] <- 0.01
 coal_times <- cumsum(inter_coal_times)
 
-init_Fmat  <- gen_caterpillar(num_tips)
-M_est_tree <- mytree_from_F(init_Fmat, coal_times)
-M_est      <- round(gen_Fmat(M_est_tree, tol = 8), 0)
+if (init_method == "upgma") {
+  upgma_tree <- upgma(dist.hamming(init_results$sequences))
+  M_est_tree <- update_time(upgma_tree, coal_times)
+} else {
+  init_Fmat  <- gen_caterpillar(num_tips)
+  M_est_tree <- mytree_from_F(init_Fmat, coal_times)
+}
+M_est <- round(gen_Fmat(M_est_tree, tol = 8), 0)
+M_true     <- round(gen_Fmat(init_results$M_true_tree, tol = 8), 0)
 g_est      <- log(0.01)
 
 # Uniform proposal samples + cache for log-Z — depends only on num_tips, build once.
@@ -137,6 +144,8 @@ print(end_time - start_time)
 
 plot(elbos2)
 
-M_estimated_tree <- mytree_from_F(nearby_Fmat_sampling(M_est), coal_times)
+M_estimated_tree <- mytree_from_F(nearby_Fmat(M_est), coal_times)
 plot(M_estimated_tree)
 plot(init_results$M_true_tree)
+
+print(paste0("L2 distance to true M: ", distance_Fmat(M_est, M_true, dist = "l2")))
