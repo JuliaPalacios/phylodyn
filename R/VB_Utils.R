@@ -374,3 +374,38 @@ update_time <- function(tree, coal_times) {
     new.edge[which(old.edge[,1] == xx$ix[j]), 1] <- index[j - n.sample]
     new.edge[which(old.edge[,2] == xx$ix[j]), 2] <- index[j - n.sample]
   }
+  
+  # check <- new.edge[new.edge[,2] > n,]
+  # check2 <- check[,1] - check[,2]
+  # while (sum(check2[check2 > 0]) > 0) {
+  #   maxcon <- which.max(check[,1] - check[,2])
+  #   changeto <- check[maxcon,2]
+  #   changefrom <- check[maxcon,1]
+  #   new.edge2 <- new.edge
+  #   new.edge2[new.edge[,1] == changefrom, 1] <- changeto
+  #   new.edge2[new.edge[,1] == changeto, 1] <- changefrom
+  #   new.edge2[new.edge[,2] == changefrom, 2] <- changeto
+  #   new.edge2[new.edge[,2] == changeto, 2] <- changefrom
+  #   new.edge <- new.edge2 
+  #   check <- new.edge[new.edge[,2] > n,]
+  #   check2 <- check[,1] - check[,2]
+  # }
+  
+  new.edge.length <- new.n.t[new.edge[,1]] - new.n.t[new.edge[,2]]
+  new.tree <- tree
+  new.tree$edge <- new.edge
+  new.tree$edge.length <- new.edge.length
+  # new.tree$tip.label <- rev(tree$tip.label)
+  
+  tree2 <- write.tree(new.tree)
+  new.tree2 <- read.tree(text = tree2)
+  
+  trees <- c(tree, new.tree2) 
+  trees <- .compressTipLabel(trees)
+  t2 <- trees[[2]]
+  
+  return(t2)
+}
+
+  
+
