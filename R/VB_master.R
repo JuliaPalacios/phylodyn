@@ -1,9 +1,9 @@
-library(ape)
-library(phylodyn)
-library(phyclust)
-library(phangorn)
-library(phylotools)
-library(fmatrix)
+#library(ape)
+#library(phylodyn)
+#library(phyclust)
+#library(phangorn)
+#library(phylotools)
+#library(fmatrix)
 
 #source("R/VB_Utils.R")
 
