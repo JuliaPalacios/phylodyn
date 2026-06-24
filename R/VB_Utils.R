@@ -152,7 +152,8 @@ compute_log_Z_est <- function(beta, M, cache, diam = 1) {
 ###Likelihood Function
 
 ### REPLACE WITH NEW FUNCTION USING UPGMA STYLE THING
-log_likelihood_given_tree <- function(tree_fmat, coal_times, sequences, mode = "mean", mu=0.01, R = 1) {
+log_likelihood_given_tree <- function(tree_fmat, coal_times, sequences,
+                                      mode = "mean", rate = 1, R = 1) {
   best_ll <- -Inf
   best_tree <- NULL
   ll_sum <- 0
@@ -161,8 +162,9 @@ log_likelihood_given_tree <- function(tree_fmat, coal_times, sequences, mode = "
     ll <- pml(
       rooted_tree,
       sequences,
-      bf = c(0.25, 0.25, 0.25, 0.25),
-      Q  = mu*c(1, 2, 1, 1, 2, 1)
+      bf   = c(0.25, 0.25, 0.25, 0.25),
+      Q    = c(1, 2, 1, 1, 2, 1),
+      rate = rate
     )$log
     ll_sum <- ll_sum + ll
     if (ll > best_ll) {
@@ -184,7 +186,8 @@ estimate_grad_g2 <- function(data,
                              M_est,
                              b_est,
                              log_Z,
-                             num_tip_label_iters) {
+                             num_tip_label_iters,
+                             rate = 1) {
   num_tips <- dim(M_est)[1] + 1
   expectation <- 0
   elbo <- 0
@@ -194,6 +197,7 @@ estimate_grad_g2 <- function(data,
                                        tree_fmat = mat,
                                        coal_times = coal_times,
                                        mode = "average",
+                                       rate = rate,
                                        R = num_tip_label_iters)$log_likelihood
     l_var <- -(num_tips - 1 - num_cherries(mat)) * log(2) +
       lfactorial(num_tips - 1) - log_Z - b_est * norm(M_est - mat, type = "F")^2
@@ -210,7 +214,8 @@ estimate_grad_M2 <- function(data,
                              M_est,
                              b_est,
                              log_Z,
-                             num_tip_label_iters) {
+                             num_tip_label_iters,
+                             rate = 1) {
   num_tips <- dim(M_est)[1] + 1
   expectation <- 0
   elbo <- 0
@@ -220,6 +225,7 @@ estimate_grad_M2 <- function(data,
                                        tree_fmat = mat,
                                        coal_times = coal_times,
                                        mode = "average",
+                                       rate = rate,
                                        R = num_tip_label_iters)$log_likelihood
     grad_M_log_q <- 2 * b_est * (mat - mean_f)
     l_var <- -(num_tips - 1 - num_cherries(mat)) * log(2) +
@@ -239,7 +245,8 @@ estimate_grad_M_g <- function(data,
                               M_est,
                               b_est,
                               log_Z,
-                              num_tip_label_iters) {
+                              num_tip_label_iters,
+                              rate = 1) {
   num_tips <- dim(M_est)[1] + 1
   expectation_M <- 0
   expectation_g <- 0
@@ -251,6 +258,7 @@ estimate_grad_M_g <- function(data,
                                        tree_fmat = mat,
                                        coal_times = coal_times,
                                        mode = "average",
+                                       rate = rate,
                                        R = num_tip_label_iters)$log_likelihood
     grad_M_log_q <- 2 * b_est * (mat - mean_f)
     l_var <- -(num_tips - 1 - num_cherries(mat)) * log(2) +
