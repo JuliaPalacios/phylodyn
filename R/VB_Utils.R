@@ -326,7 +326,21 @@ sampleF <- function(M, beta, iter, diam, startF = NULL, take_every = 1){
   )
 }
 
+gen_caterpillar <- function(n) {
+  F_mat <- matrix(rep(seq(1, n - 1), n - 1), nrow = n - 1, byrow = TRUE)
+  F_mat[upper.tri(F_mat)] <- 0
+  diag(F_mat) <- seq(2, n)
+  F_mat
+}
 
+# Thinned, burnt-in wrapper around sampleF: record every `take_every`-th state,
+# then drop the first `burnin`-worth of recorded states.
+generate_sample_markov_chain <- function(M, b, num_samps, burnin, take_every = 20, diam = 1) {
+  total <- burnin + take_every * num_samps
+  chain <- sampleF(M, b, iter = total, diam = diam, take_every = take_every)$chainF
+  skip  <- floor(burnin / take_every)
+  chain[(skip + 1):(skip + num_samps)]
+}
 
 update_time <- function(tree, coal_times) {
   # coal_times <- cumsum(coalescent.intervals(tree)$interval.length)
