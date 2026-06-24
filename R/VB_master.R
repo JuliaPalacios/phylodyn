@@ -5,7 +5,7 @@ library(phangorn)
 library(phylotools)
 library(fmatrix)
 
-source("R/VB_Utils.R")
+#source("R/VB_Utils.R")
 
 gen_caterpillar <- function(n) {
   F_mat <- matrix(rep(seq(1, n - 1), n - 1), nrow = n - 1, byrow = TRUE)
