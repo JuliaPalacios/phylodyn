@@ -152,7 +152,7 @@ compute_log_Z_est <- function(beta, M, cache, diam = 1) {
 ###Likelihood Function
 
 ### REPLACE WITH NEW FUNCTION USING UPGMA STYLE THING
-log_likelihood_given_tree <- function(tree_fmat, coal_times, sequences, mode = "max", R = 1) {
+log_likelihood_given_tree <- function(tree_fmat, coal_times, sequences, mode = "mean", mu=0.01, R = 1) {
   best_ll <- -Inf
   best_tree <- NULL
   ll_sum <- 0
@@ -162,7 +162,7 @@ log_likelihood_given_tree <- function(tree_fmat, coal_times, sequences, mode = "
       rooted_tree,
       sequences,
       bf = c(0.25, 0.25, 0.25, 0.25),
-      Q  = c(1, 2, 1, 1, 2, 1)
+      Q  = mu*c(1, 2, 1, 1, 2, 1)
     )$log
     ll_sum <- ll_sum + ll
     if (ll > best_ll) {
