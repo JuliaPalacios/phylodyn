@@ -135,8 +135,8 @@ compute_log_Z_est <- function(beta, M, cache, diam = 1) {
   }
 
   m <- max(log_terms)
-
-  log_Z_est <- log(zigzag(num_tips - 1)) + m + log(mean(exp(log_terms - m)))
+  #CHECK FIX 
+  log_Z_est <- log(zigzag(num_tips)) + m + log(mean(exp(log_terms - m)))
   if (!is.finite(log_Z_est)) {
     stop(
       "compute_log_Z_est() returned a non-finite log_Z estimate: ",
