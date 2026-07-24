@@ -152,28 +152,61 @@ compute_log_Z_est <- function(beta, M, cache, diam = 1) {
 ###Likelihood Function
 
 ### REPLACE WITH NEW FUNCTION USING UPGMA STYLE THING
-log_likelihood_given_tree <- function(tree_fmat, coal_times, sequences,
-                                      mode = "mean", rate = 1, R = 1) {
+log_likelihood_given_tree <- function(tree_fmat,
+                                      coal_times,
+                                      sequences,
+                                      mode = "average",
+                                      rate = 1,
+                                      R = 1) {
+  logmeanexp <- function(x) {
+    m <- max(x)
+    m + log(mean(exp(x - m)))
+  }
+  
   best_ll <- -Inf
   best_tree <- NULL
-  ll_sum <- 0
+  lls <- numeric(R)
+  
   for (r in seq_len(R)) {
     rooted_tree <- mytree_from_F(tree_fmat, coal_times)
+    
     ll <- pml(
       rooted_tree,
       sequences,
-      bf   = c(0.25, 0.25, 0.25, 0.25),
-      Q    = c(1, 2, 1, 1, 2, 1),
+      bf = c(0.25, 0.25, 0.25, 0.25),
+      Q  = c(1, 2, 1, 1, 2, 1),
       rate = rate
     )$log
-    ll_sum <- ll_sum + ll
+    
+    lls[r] <- ll
+    
     if (ll > best_ll) {
       best_ll <- ll
       best_tree <- rooted_tree
     }
   }
-  log_likelihood <- if (mode == "max") best_ll else ll_sum / R
-  list(log_likelihood = log_likelihood, rooted_tree = best_tree)
+  
+  log_likelihood <- switch(
+    mode,
+    max = best_ll,
+    
+    # Correct collapsed likelihood for an unlabeled F:
+    # log p(data | F) = log E_labeling[p(data | F, labeling)]
+    average = logmeanexp(lls),
+    logmeanexp = logmeanexp(lls),
+    marginal = logmeanexp(lls),
+    
+    # Old behavior, kept available explicitly:
+    meanlog = mean(lls),
+    
+    stop("Unknown likelihood mode: ", mode)
+  )
+  
+  list(
+    log_likelihood = log_likelihood,
+    rooted_tree = best_tree,
+    label_log_likelihoods = lls
+  )
 }
 
 
