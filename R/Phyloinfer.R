@@ -1252,8 +1252,12 @@ sampling_ESS = function(data, para, setting, init,
                 kappa = kappa, lik_init = lik_init)
       }else{
       
-      res = ESS(q_cur = f, l_cur = pos_summ$loglik, loglik = ll,
-                cholC = cholC/sqrt(kappa), lik_init = lik_init)
+      #res = ESS(q_cur = f, l_cur = pos_summ$loglik, loglik = ll,
+      #          cholC = cholC/sqrt(kappa), lik_init = lik_init)
+
+      print("runs ESS2 but SC")
+      res = ESS2(q_cur = f, l_cur = pos_summ$loglik, loglik = ll,
+                kappa = kappa, lik_init = lik_init)
       }
       f = res$q
     }
