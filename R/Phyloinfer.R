@@ -1247,6 +1247,7 @@ sampling_ESS = function(data, para, setting, init,
     if (samp_alg == "none")
     {
     if (!is.null(bound)){
+      print("runs ESS2")
        res = ESS2(q_cur = f, l_cur = pos_summ$loglik, loglik = ll,
                 kappa = kappa, lik_init = lik_init)
       }else{
