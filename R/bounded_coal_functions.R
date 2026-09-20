@@ -810,7 +810,7 @@ bounded_skyline_ascent<-function (data, bound = 1)
                            n_sampled = n_sampled))
   }
   else stop("data must be a phylo or a list/data.frame with coal_times, samp_times, n_sampled")
-  grid = c(0, data$coal_times, bound + 1e-04)
+  grid = c(0, phy$coal_times, bound + 1e-04)
   lik_init <- phylodyn:::coal_lik_init(samp_times = phy$samp_times, 
                                        n_sampled = phy$n_sampled, coal_times = phy$coal_times, 
                                        grid = grid)
