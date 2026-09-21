@@ -827,6 +827,6 @@ bounded_skyline_ascent<-function (data, bound = 1)
   #                                                                          length(par0))))
   Ne = exp(c(fit[[1]][1],fit[[1]]))
   l = length(Ne)
-  return(list(Ne = Ne[-l], grid = grid[-l]))
+  return(list(Ne = Ne[-l], grid = grid[-l], Ne_all=Ne,grid_all=grid))
 }
                    
