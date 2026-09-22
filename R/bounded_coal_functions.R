@@ -367,8 +367,8 @@ coal_loglik_bounded = function(init, f)
   #bound_prob<-0.03357345
   #logboundprob<-log(bound_prob)
   
-  print("bound prob")
-  print(bound_prob)
+ # print("bound prob")
+ # print(bound_prob)
   ll_vec <- -init$y * f - llnocoal
   #ll <- sum(ll_vec[!is.nan(ll_vec)])- log(bound_prob)
   ll <- sum(ll_vec[!is.nan(ll_vec)])- logboundprob
@@ -523,15 +523,15 @@ Ne_gradient_ascent <- function(f_init, lik_init, bound, eps, eta) {
     
     diff = sum(abs(newF - currF))
     if (numSteps %% 10 == 0) { #Print out results every 10 steps
-      print(newF)
-      print(diff)
+      #print(newF)
+      #print(diff)
     }
     numSteps = numSteps + 1
-    print(numSteps)
+    #print(numSteps)
     currF = newF
-    print(newF)
-    print(diff)
-    print(result$ll)
+    #print(newF)
+    #print(diff)
+    #print(result$ll)
   }
   
   return(list(newF, ll))
