@@ -1,0 +1,142 @@
+---
+title: "Bounded Coalescent simulation of genealogies"
+author: "Bingjing Tang, Shuangping Li and Julia Palacios"
+date: "July 2, 2025"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Simulation}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+# Bounded Coalescent simulation of genealogies
+
+We will first consider 3 different effective population size trajectories: constant $N_{e}(t)=1$, slow exponential growth $N_{e}(t)=3e^-t$, and fast exponential growth $N_{e}(t)=25e^-5t$. If we assume 100 tips, what is the distribution of the TMRCA?
+
+```{r}
+#constant
+set.seed(123)
+constant<-function(x){return (rep(1,length(x)))}
+
+library("phylodyn")
+tmrca1<-rep(0,1000)
+for (j in 1:1000){
+  sim1<-coalsim(c(0),n_sampled=c(100),constant)
+  tmrca1[j]<-max(sim1$coal_times)
+}
+#hist(tmrca1)
+rej_prob<-sum(tmrca1<1)/1000
+rej_prob
+
+print(rej_prob)
+
+tmrca2<-rep(0,1000)
+for (j in 1:1000){
+  sim1<-coalsim(c(0),n_sampled=c(100),exp_traj,scale=3,rate=1)
+  tmrca2[j]<-max(sim1$coal_times)
+}
+#hist(tmrca2)
+rej_prob<-sum(tmrca2<1.4)/1000
+rej_prob
+
+print(rej_prob)
+
+
+tmrca3<-rep(0,1000)
+for (j in 1:1000){
+  sim1<-coalsim(c(0),n_sampled=c(100),exp_traj,scale=25,rate=5)
+  tmrca3[j]<-max(sim1$coal_times)
+}
+#hist(tmrca3)
+rej_prob<-sum(tmrca3<1)/1000
+rej_prob
+
+print(rej_prob)
+```
+
+If we choose the following upper bounds $\tau$: 1, 1.4, 1 for the three effective population sizes respectively, the bound probability $P(T_{2}\leq \tau)$ are $0.14, 0.15, 0.22$
+
+We will simulate 3 coalescent vectors of trees with 100 tips under 3 different scenarios: constant $N_{e}(t)=1$ and $\tau=1$, slow exponential growth $N_{e}(t)=3e^-t$ with $\tau=1.4$ and fast exponential growth $N_{e}(t)=25e^-5t$ with $\tau=1.0$.
+
+```{r}
+set.seed(123)
+library("phylodyn")
+n=100 #number of tips
+constant<-function(x){
+  return (rep(1,length(x)))
+}
+simulation1<-coalsim_bounded(c(0),c(n),constant,bound=1)
+simulation2<-coalsim_bounded(c(0),c(n),exp_traj,bound=1.4,scale=3,rate=1)
+simulation3<-coalsim_bounded(c(0),c(n),exp_traj,bound=1,scale=25,rate=5)
+
+```
+
+We will now estimate $N_{e}(t)$ assuming the standard coalescent with the \texttt{ape} function \texttt{skyline} and so will convert our simulated coalescent time vectors into a phylogenetic trees. We will display the first tree
+
+```{r}
+
+tree1<-generate_newick(simulation1)$newick
+plot(tree1,show.tip.label=FALSE)
+axisPhylo()
+tree2<-generate_newick(simulation2)$newick
+tree3<-generate_newick(simulation3)$newick
+  
+```
+
+We will now get the skyline estimations under both standard coalescent and bounded coalescent
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE,results="hide"}
+library("ape")
+sky<-skyline(tree1)
+bound_sky<-phylodyn:::bounded_skyline_ascent(tree1, bound =1)
+sky2<-skyline(tree2)
+bound_sky2<-phylodyn:::bounded_skyline_ascent(tree2, bound =1.4)
+sky3<-skyline(tree3)
+bound_sky3<-phylodyn:::bounded_skyline_ascent(tree3, bound =1.0)
+```
+
+```{r}
+
+#Plot 1
+par(mfrow=c(1,3))
+plot(sky$time,sky$population.size,xlim=c(max(sky$time),0),type="S",col="#1f77b4",ylim=c(0,5),lwd=1.5,xlab="Time (Past to Present)",ylab="Ne")
+legend("top", bty = "n",
+                        legend = c("BC", "SC"),
+                        col = c("#d62728", "#1f77b4"), lwd = 1.5,seg.len=0.5)
+
+       points(bound_sky$grid,bound_sky$Ne,col="#d62728",type="S",lwd=1.5)
+points(bound_sky$grid,constant(bound_sky$grid),type="l",lwd=1.5)
+
+#Plot 2
+plot(sky2$time,sky2$population.size,xlim=c(max(sky2$time),0),type="S",col="#1f77b4",ylim=c(0,10),lwd=1.5,xlab="Time (Past to Present)",ylab="")
+points(bound_sky2$grid,bound_sky2$Ne,col="#d62728",type="S",lwd=1.5)
+points(bound_sky2$grid,exp_traj(bound_sky2$grid,scale=3,rate=1),type="l",lwd=1.5)
+
+#Plot 3
+plot(sky3$time,sky3$population.size,xlim=c(max(sky3$time),0),type="S",col="#1f77b4",ylim=c(0,80),lwd=1.5,xlab="Time (Past to Present)",ylab="")
+points(bound_sky3$grid,bound_sky3$Ne,col="#d62728",type="S",lwd=1.5)
+points(bound_sky3$grid,exp_traj(bound_sky3$grid,scale=25,rate=5),type="l",lwd=1.5)
+
+```
+
+We can now estimate $Ne$ according to the discrete method with BM prior. We normally use 100,000 iterations and 10% of burnin. For this vignette, we will simply generate 2000 iterations
+
+```{r}
+
+res1_mcmc<-mcmc_sampling(tree1,alg="bound_ESS",nsamp=2000,nburnin=300,ngrid=100,
+                         bound=1)
+res2_mcmc<-mcmc_sampling(tree1,alg="ESS",nsamp=2000,nburnin=300,ngrid=100)
+
+plot(sky$time,sky$population.size,xlim=c(max(sky$time),0),type="S",col="white",ylim=c(0,5),lwd=1.5,xlab="Time (Past to Present)",ylab="Ne")
+lines(res1_mcmc$med_fun,pch="",col="#d62728",lwd=2.5)
+lines(res1_mcmc$low_fun,pch="",col="#d62728",lwd=2,lty=3)
+lines(res1_mcmc$hi_fun,pch="",col="#d62728",lwd=2,lty=3)
+
+lines(res2_mcmc$med_fun,pch="",col="darkblue",lwd=2.5)
+lines(res2_mcmc$low_fun,pch="",col="darkblue",lwd=2,lty=3)
+lines(res2_mcmc$hi_fun,pch="",col="darkblue",lwd=2,lty=3)
+
+
+
+
+```
