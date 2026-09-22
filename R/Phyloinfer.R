@@ -14,8 +14,8 @@ ESS = function(q_cur, l_cur, loglik, cholC, ...)
 {  
   # choose ellipse
   nu = crossprod(cholC, stats::rnorm(length(q_cur)))
-  print("current loglik")
-  print(l_cur)
+  #print("current loglik")
+  #print(l_cur)
   # log-likelihood threshold
   u = stats::runif(1)
   logy <- l_cur + log(u)
@@ -27,8 +27,8 @@ ESS = function(q_cur, l_cur, loglik, cholC, ...)
   
   q <- q_cur*cos(t) + nu*sin(t)
   l <- loglik(q, ...)
-  print("new l")
-  print(l)
+  #print("new l")
+  #print(l)
   while (l < logy)
   {
     # shrink the bracket and try a new point
@@ -56,10 +56,10 @@ ESS2 = function(q_cur, l_cur, loglik, kappa, lik_init, ...)
   nu=sim_rw1(lik_init$args$grid, signal = 1/kappa, constraint ="none", anchor_index = 1) 
   
   #nu = crossprod(cholC, stats::rnorm(length(q_cur)))
-  print("current loglik")
-  print(l_cur)
-  print("length f")
-  print(length(nu))
+  #print("current loglik")
+  #print(l_cur)
+  #print("length f")
+  #print(length(nu))
   # log-likelihood threshold
   u = stats::runif(1)
   logy <- l_cur + log(u)
@@ -71,8 +71,8 @@ ESS2 = function(q_cur, l_cur, loglik, kappa, lik_init, ...)
   
   q <- q_cur*cos(t) + nu*sin(t)
   l <- loglik(f=q, lik_init = lik_init, ...)
-  print("new l")
-  print(l)
+  #print("new l")
+  #print(l)
   while (l < logy)
   {
     # shrink the bracket and try a new point
