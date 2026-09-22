@@ -58,7 +58,7 @@ or check [r-inla.org](http://www.r-inla.org/download) for the most up-to-date in
     
 18. [Labeled distance](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/label_distance.Rmd): Distance between ranked labeled trees.
 
-19. [Bounded coalescent](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/Bounded_Coalescent_ML.Rmd) 
+19. [Bounded coalescent](https://github.com/JuliaPalacios/phylodyn/blob/master/vignettes/simulation_bounded.Rmd) 
 
 ## Datasets
 
