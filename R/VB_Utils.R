@@ -169,6 +169,11 @@ log_likelihood_given_tree <- function(tree_fmat,
   
   for (r in seq_len(R)) {
     rooted_tree <- mytree_from_F(tree_fmat, coal_times)
+    tip_labels <- names(sequences)
+    if (length(tip_labels) != length(rooted_tree$tip.label) || anyDuplicated(tip_labels)) {
+      stop("sequences must have one unique name for each tip.")
+    }
+    rooted_tree$tip.label <- sample(tip_labels, replace = FALSE)
     
     ll <- pml(
       rooted_tree,
@@ -212,6 +217,8 @@ log_likelihood_given_tree <- function(tree_fmat,
 
 ### GRADIENT ESTIMATORS
 
+# All estimators retain summed returns for compatibility with existing callers.
+# Divide by length(samples_gibbs) once in the caller to obtain batch averages.
 estimate_grad_g2 <- function(data,
                              coal_times,
                              samples_gibbs,
@@ -220,25 +227,16 @@ estimate_grad_g2 <- function(data,
                              b_est,
                              log_Z,
                              num_tip_label_iters,
-                             rate = 1) {
-  num_tips <- dim(M_est)[1] + 1
-  expectation <- 0
-  elbo <- 0
-  expected_sq_dist <- mean(tree_chain_squared_distances(cache_gibbs, M_est))
-  for (mat in samples_gibbs) {
-    l_lik <- log_likelihood_given_tree(sequences = data,
-                                       tree_fmat = mat,
-                                       coal_times = coal_times,
-                                       mode = "average",
-                                       rate = rate,
-                                       R = num_tip_label_iters)$log_likelihood
-    l_var <- -(num_tips - 1 - num_cherries(mat)) * log(2) +
-      lfactorial(num_tips - 1) - log_Z - b_est * norm(M_est - mat, type = "F")^2
-    grad_g_log_q <- b_est * (expected_sq_dist - norm(mat - M_est, type = "F")^2)
-    expectation <- expectation + grad_g_log_q * (l_lik - l_var)
-    elbo <- elbo + (l_lik - l_var)
-  }
-  list(grad = expectation, elbo = elbo)
+                             rate = 1,
+                             reference_cache = NULL,
+                             baseline = 0) {
+  result <- estimate_grad_M_g(
+    data = data, coal_times = coal_times, samples_gibbs = samples_gibbs,
+    cache_gibbs = cache_gibbs, M_est = M_est, b_est = b_est, log_Z = log_Z,
+    num_tip_label_iters = num_tip_label_iters, rate = rate,
+    reference_cache = reference_cache, baseline = baseline
+  )
+  list(grad = result$grad_g, elbo = result$elbo)
 }
 
 estimate_grad_M2 <- function(data,
@@ -248,28 +246,17 @@ estimate_grad_M2 <- function(data,
                              b_est,
                              log_Z,
                              num_tip_label_iters,
-                             rate = 1) {
-  num_tips <- dim(M_est)[1] + 1
-  expectation <- 0
-  elbo <- 0
-  mean_f <- Reduce('+', samples_gibbs) / length(samples_gibbs)
-  for (mat in samples_gibbs) {
-    l_lik <- log_likelihood_given_tree(sequences = data,
-                                       tree_fmat = mat,
-                                       coal_times = coal_times,
-                                       mode = "average",
-                                       rate = rate,
-                                       R = num_tip_label_iters)$log_likelihood
-    grad_M_log_q <- 2 * b_est * (mat - mean_f)
-    l_var <- -(num_tips - 1 - num_cherries(mat)) * log(2) +
-      lfactorial(num_tips - 1) - log_Z - b_est * norm(M_est - mat, type = "F")^2
-    expectation <- expectation + grad_M_log_q * (l_lik - l_var)
-    elbo <- elbo + (l_lik - l_var)
-  }
-  list(grad = expectation, elbo = elbo)
+                             rate = 1,
+                             reference_cache = NULL,
+                             baseline = 0) {
+  result <- estimate_grad_M_g(
+    data = data, coal_times = coal_times, samples_gibbs = samples_gibbs,
+    cache_gibbs = NULL, M_est = M_est, b_est = b_est, log_Z = log_Z,
+    num_tip_label_iters = num_tip_label_iters, rate = rate,
+    reference_cache = reference_cache, baseline = baseline
+  )
+  list(grad = result$grad_M, elbo = result$elbo)
 }
-
-
 
 estimate_grad_M_g <- function(data,
                               coal_times,
@@ -279,27 +266,62 @@ estimate_grad_M_g <- function(data,
                               b_est,
                               log_Z,
                               num_tip_label_iters,
-                              rate = 1) {
-  num_tips <- dim(M_est)[1] + 1
-  expectation_M <- 0
+                              rate = 1,
+                              reference_cache = NULL,
+                              baseline = 0) {
+  if (length(samples_gibbs) == 0L) stop("samples_gibbs must not be empty.")
+  if (length(b_est) != 1L || !is.finite(b_est) || b_est <= 0) {
+    stop("b_est must be a finite positive scalar.")
+  }
+  if (length(log_Z) != 1L || !is.finite(log_Z)) stop("log_Z must be finite.")
+  if (length(baseline) != 1L || !is.finite(baseline)) stop("baseline must be finite.")
+  if (is.null(cache_gibbs)) {
+    cache_gibbs <- precompute_tree_chain_distance_cache(samples_gibbs)
+  }
+  distances <- tree_chain_squared_distances(cache_gibbs, M_est)
+  if (length(distances) != length(samples_gibbs)) {
+    stop("cache_gibbs must correspond to samples_gibbs in the same order.")
+  }
+  if (is.null(reference_cache)) {
+    # Legacy fallback: center scores with moments from the sampled batch.
+    mean_f <- Reduce('+', samples_gibbs) / length(samples_gibbs)
+    expected_sq_dist <- mean(distances)
+  } else {
+    # Complete support gives exact moments. A uniform proposal pool gives
+    # self-normalized importance estimates; it need not be the sampled batch.
+    reference_distances <- tree_chain_squared_distances(reference_cache, M_est)
+    log_weights <- -b_est * reference_distances
+    if (any(!is.finite(log_weights))) stop("Reference Gibbs weights must be finite.")
+    weights <- exp(log_weights - max(log_weights))
+    weights <- weights / sum(weights)
+    mean_f <- matrix(0, nrow = nrow(M_est), ncol = ncol(M_est))
+    mean_f[reference_cache$lower_idx] <-
+      as.numeric(crossprod(weights, reference_cache$tree_matrix))
+    expected_sq_dist <- sum(weights * reference_distances)
+  }
+  num_tips <- nrow(M_est) + 1L
+  expectation_M <- matrix(0, nrow = nrow(M_est), ncol = ncol(M_est))
   expectation_g <- 0
   elbo <- 0
-  mean_f <- Reduce('+', samples_gibbs) / length(samples_gibbs)
-  expected_sq_dist <- mean(tree_chain_squared_distances(cache_gibbs, M_est))
-  for (mat in samples_gibbs) {
-    l_lik <- log_likelihood_given_tree(sequences = data,
-                                       tree_fmat = mat,
-                                       coal_times = coal_times,
-                                       mode = "average",
-                                       rate = rate,
-                                       R = num_tip_label_iters)$log_likelihood
+  for (i in seq_along(samples_gibbs)) {
+    mat <- samples_gibbs[[i]]
+    l_lik <- log_likelihood_given_tree(
+      sequences = data, tree_fmat = mat, coal_times = coal_times,
+      mode = "meanlog", rate = rate, R = num_tip_label_iters
+    )$log_likelihood
+    # log(q(labeled ranked tree) / p(labeled ranked tree)), with a
+    # uniform labeled-ranked prior and uniform labeling conditional on F.
+    cherries <- sum(diff(c(0, mat[nrow(mat), ])) == 2)
+    l_var <- -(num_tips - 1L - cherries) * log(2) +
+      lfactorial(num_tips - 1L) - log_Z - b_est * distances[i]
+    reward <- l_lik - l_var
+    # Supply a baseline independent of this batch. It affects gradients only.
+    advantage <- reward - baseline
     grad_M_log_q <- 2 * b_est * (mat - mean_f)
-    l_var <- -(num_tips - 1 - num_cherries(mat)) * log(2) +
-      lfactorial(num_tips - 1) - log_Z - b_est * norm(M_est - mat, type = "F")^2
-    expectation_M <- expectation_M + grad_M_log_q * (l_lik - l_var)
-    grad_g_log_q <- b_est * (expected_sq_dist - norm(mat - M_est, type = "F")^2)
-    expectation_g <- expectation_g + grad_g_log_q * (l_lik - l_var)
-    elbo <- elbo + (l_lik - l_var)
+    grad_g_log_q <- b_est * (expected_sq_dist - distances[i])
+    expectation_M <- expectation_M + grad_M_log_q * advantage
+    expectation_g <- expectation_g + grad_g_log_q * advantage
+    elbo <- elbo + reward
   }
   list(grad_g = expectation_g, grad_M = expectation_M, elbo = elbo)
 }
