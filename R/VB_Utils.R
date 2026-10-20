@@ -470,5 +470,126 @@ update_time <- function(tree, coal_times) {
   return(t2)
 }
 
-  
 
+# RNNI proposals and Metropolis-Hastings for valid ranked A-matrices.
+# Rows run from root (1) to youngest internal node (n-1).
+
+a_matrix_key <- function(A) paste(as.integer(A), collapse = '')
+
+a_matrix_valid <- function(A) {
+  if (!is.matrix(A) || ncol(A) < 2L || nrow(A) != ncol(A) - 1L ||
+      anyNA(A) || !all(A %in% c(0, 1))) return(FALSE)
+  n <- ncol(A)
+  blocks <- lapply(seq_len(n), function(j) as.numeric(seq_len(n) == j))
+  for (i in seq.int(n - 1L, 1L)) {
+    # A valid merge must be the union of exactly two entire active blocks.
+    selected <- which(vapply(blocks, function(B) any(B > 0 & A[i, ] > 0), logical(1L)))
+    if (length(selected) != 2L) return(FALSE)
+    if (!all(blocks[[selected[1L]]] + blocks[[selected[2L]]] == A[i, ])) return(FALSE)
+    blocks <- c(blocks[-selected], list(as.numeric(A[i, ])))
+  }
+  length(blocks) == 1L && all(blocks[[1L]] == 1)
+}
+
+a_rnni_neighbors_at <- function(A, i, check = TRUE) {
+  if (check && !a_matrix_valid(A)) stop('A is not a valid ranked A-matrix.')
+  n <- ncol(A)
+  if (length(i) != 1L || is.na(i) || i != as.integer(i) || i < 1L || i > n - 2L)
+    stop('The row index must lie in 1,...,n-2.')
+  older <- A[i, ]; younger <- A[i + 1L, ]
+  if (sum(older * younger) == 0) {
+    B <- A
+    B[c(i, i + 1L), ] <- A[c(i + 1L, i), , drop = FALSE]
+    return(list(move = 'rank', candidates = list(B)))
+  }
+  if (!all(younger <= older)) stop('Adjacent rows overlap without nesting.')
+  # Consecutive nested internal ranks are joined by an edge. After removing
+  # row i+1, recover the three maximal blocks beneath row i. This handles
+  # every leaf/subtree combination without branching on the number of tips.
+  remaining <- older
+  blocks <- list()
+  if (i + 1L < nrow(A)) {
+    for (k in seq.int(i + 2L, nrow(A))) {
+      if (all(A[k, ] <= remaining)) {
+        blocks[[length(blocks) + 1L]] <- as.numeric(A[k, ])
+        remaining <- remaining - A[k, ]
+      }
+    }
+  }
+  for (j in which(remaining == 1)) {
+    blocks[[length(blocks) + 1L]] <- as.numeric(seq_len(n) == j)
+  }
+  if (length(blocks) != 3L) stop('The contracted edge must expose three blocks.')
+  inside <- which(vapply(blocks, function(B) all(B <= younger), logical(1L)))
+  sibling <- setdiff(seq_len(3L), inside)
+  if (length(inside) != 2L || length(sibling) != 1L) stop('Invalid NNI blocks.')
+  candidates <- lapply(inside, function(k) {
+    B <- A
+    B[i + 1L, ] <- blocks[[sibling]] + blocks[[k]]
+    B
+  })
+  list(move = 'NNI', candidates = candidates)
+}
+
+a_rnni_propose <- function(A, check = TRUE) {
+  if (check && !a_matrix_valid(A)) stop('A is not a valid ranked A-matrix.')
+  n <- ncol(A)
+  if (n < 3L) stop('A two-tip tree has no RNNI move.')
+  i <- sample.int(n - 2L, 1L)
+  neighbors <- a_rnni_neighbors_at(A, i, check = FALSE)
+  k <- sample.int(length(neighbors$candidates), 1L)
+  list(A = neighbors$candidates[[k]], row = i, move = neighbors$move,
+       proposal_probability = 1 / ((n - 2L) * length(neighbors$candidates)))
+}
+
+a_rnni_sample <- function(theta, initial, n_samples, burnin = 1000L,
+                           thin = 1L, seed = NULL, record = function(A) A) {
+  if (!a_matrix_valid(initial)) stop('The initial A-matrix is invalid.')
+  if (!identical(dim(theta), dim(initial)) || any(!is.finite(theta)))
+    stop('theta must be finite and have the same dimensions as initial.')
+  for (value in list(n_samples, burnin, thin)) {
+    if (length(value) != 1L || !is.finite(value) || value != as.integer(value))
+      stop('Sample counts, burn-in and thinning must be integer scalars.')
+  }
+  if (n_samples < 1L || burnin < 0L || thin < 1L) stop('Invalid sampling schedule.')
+  if (!is.null(seed)) set.seed(seed)
+  if (ncol(initial) == 2L) {
+    return(list(samples = replicate(n_samples, record(initial), simplify = FALSE),
+                final = initial, acceptance_rate = NA_real_, proposals = c(rank = 0L, NNI = 0L),
+                accepted = c(rank = 0L, NNI = 0L)))
+  }
+  current <- initial
+  draws <- vector('list', n_samples)
+  proposed <- accepted <- c(rank = 0L, NNI = 0L)
+  total <- burnin + n_samples * thin
+  saved <- 0L
+  for (iteration in seq_len(total)) {
+    proposal <- a_rnni_propose(current, check = FALSE)
+    proposed[proposal$move] <- proposed[proposal$move] + 1L
+    # The symmetric row-based proposal cancels in the Hastings ratio.
+    log_ratio <- sum(theta * (proposal$A - current))
+    if (log(runif(1L)) < min(0, log_ratio)) {
+      current <- proposal$A
+      accepted[proposal$move] <- accepted[proposal$move] + 1L
+    }
+    if (iteration > burnin && (iteration - burnin) %% thin == 0L) {
+      saved <- saved + 1L
+      draws[[saved]] <- record(current)
+    }
+  }
+  list(samples = draws, final = current, acceptance_rate = sum(accepted) / total,
+       proposals = proposed, accepted = accepted)
+}
+
+a_vi_covariance_gradient <- function(samples, log_likelihood, theta) {
+  # Uniform labeled-tree prior. No log Z is needed for this covariance.
+  # Correlated MCMC draws give a consistent, not generally unbiased,
+  # finite-chain estimate; mixing must be checked separately.
+  if (length(samples) < 2L || length(log_likelihood) != length(samples) ||
+      any(!is.finite(log_likelihood))) stop('At least two finite likelihoods are required.')
+  values <- do.call(rbind, lapply(samples, as.vector))
+  if (ncol(values) != length(theta)) stop('Sample and theta dimensions disagree.')
+  reward <- log_likelihood - as.numeric(values %*% as.vector(theta))
+  matrix(as.numeric(stats::cov(values, reward)), nrow(theta), ncol(theta),
+         dimnames = dimnames(theta))
+}
